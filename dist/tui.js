@@ -387,6 +387,27 @@ function MemoEditor(props) {
     _$setProp(_el$11, "placeholder", "Write memo content\u2026");
     _$setProp(_el$11, "wrapMode", "word");
     _$setProp(_el$11, "keyBindings", [{
+      name: "return",
+      action: "submit"
+    }, {
+      name: "kpenter",
+      action: "submit"
+    }, {
+      name: "linefeed",
+      action: "submit"
+    }, {
+      name: "return",
+      ctrl: true,
+      action: "newline"
+    }, {
+      name: "kpenter",
+      ctrl: true,
+      action: "newline"
+    }, {
+      name: "linefeed",
+      ctrl: true,
+      action: "newline"
+    }, {
       name: "s",
       ctrl: true,
       action: "submit"
@@ -410,7 +431,7 @@ function MemoEditor(props) {
     _$setProp(_el$14, "height", 1);
     _$setProp(_el$14, "wrapMode", "none");
     _$setProp(_el$14, "onMouseUp", (event) => click(event, cancel));
-    _$insertNode(_el$16, _$createTextNode(`Enter newline \xB7 Ctrl+S save \xB7 Esc cancel`));
+    _$insertNode(_el$16, _$createTextNode(`Enter save \xB7 Ctrl+Enter newline \xB7 Ctrl+S save \xB7 Esc cancel`));
     _$setProp(_el$16, "height", 1);
     _$setProp(_el$16, "wrapMode", "none");
     _$setProp(_el$16, "truncate", true);

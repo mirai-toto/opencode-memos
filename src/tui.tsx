@@ -151,7 +151,15 @@ function MemoEditor(props: {
         <b>{props.title}</b>
       </text>
       <textarea ref={(value: TextareaRenderable): void => { editor = value }} focused initialValue={props.initialContent} placeholder="Write memo content…" wrapMode="word"
-        keyBindings={[{ name: "s", ctrl: true, action: "submit" }]}
+        keyBindings={[
+          { name: "return", action: "submit" },
+          { name: "kpenter", action: "submit" },
+          { name: "linefeed", action: "submit" },
+          { name: "return", ctrl: true, action: "newline" },
+          { name: "kpenter", ctrl: true, action: "newline" },
+          { name: "linefeed", ctrl: true, action: "newline" },
+          { name: "s", ctrl: true, action: "submit" },
+        ]}
         onSubmit={(): void => { void save() }}
         height={Math.max(5, terminalHeight() - 12)}
         onContentChange={contentChanged} />
@@ -163,7 +171,7 @@ function MemoEditor(props: {
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Enter newline · Ctrl+S save · Esc cancel
+          Enter save · Ctrl+Enter newline · Ctrl+S save · Esc cancel
         </text>
       </box>
     </box>

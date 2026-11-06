@@ -55,5 +55,5 @@ npm run check
 ```
 
 Each group has its own **New** action. After entering a title, a multiline editor
-accepts content: **Enter** inserts a line break, **Ctrl+S** or **Save** stores
-the memo, and **Esc** or **Cancel** discards it.
+accepts content: **Ctrl+Enter** inserts a line break; **Enter**, **Ctrl+S**, or
+**Save** stores the memo; **Esc** or **Cancel** discards it.
