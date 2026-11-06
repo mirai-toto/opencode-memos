@@ -381,6 +381,14 @@ function MemoEditor(props) {
   const titleChanged = (value) => {
     setTitle(value);
   };
+  const focusTitle = (event) => {
+    if (event.button === 0)
+      titleInput?.focus();
+  };
+  const focusContent = (event) => {
+    if (event.button === 0)
+      editor?.focus();
+  };
   const contentChanged = (value) => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content());
   };
@@ -447,6 +455,7 @@ function MemoEditor(props) {
       titleInput = value;
     }, _el$12);
     _$setProp(_el$12, "placeholder", "Memo title");
+    _$setProp(_el$12, "onMouseDown", focusTitle);
     _$setProp(_el$12, "onInput", titleChanged);
     _$setProp(_el$12, "onSubmit", () => {
       editor?.focus();
@@ -482,14 +491,11 @@ function MemoEditor(props) {
       name: "linefeed",
       ctrl: true,
       action: "newline"
-    }, {
-      name: "s",
-      ctrl: true,
-      action: "submit"
     }]);
     _$setProp(_el$16, "onSubmit", () => {
       save();
     });
+    _$setProp(_el$16, "onMouseDown", focusContent);
     _$setProp(_el$16, "onContentChange", contentChanged);
     _$insertNode(_el$17, _el$18);
     _$insertNode(_el$17, _el$19);
@@ -506,7 +512,7 @@ function MemoEditor(props) {
     _$setProp(_el$19, "height", 1);
     _$setProp(_el$19, "wrapMode", "none");
     _$setProp(_el$19, "onMouseUp", (event) => click(event, cancel));
-    _$insertNode(_el$21, _$createTextNode(`Title Enter \u2192 content \xB7 Content Enter save \xB7 Ctrl+Enter newline \xB7 Ctrl+S save \xB7 Esc cancel`));
+    _$insertNode(_el$21, _$createTextNode(`Title Enter \u2192 content \xB7 Content Enter save \xB7 Ctrl+Enter newline \xB7 Arrows move cursor \xB7 Esc cancel`));
     _$setProp(_el$21, "height", 1);
     _$setProp(_el$21, "wrapMode", "none");
     _$setProp(_el$21, "truncate", true);

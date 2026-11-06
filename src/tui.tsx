@@ -139,6 +139,12 @@ function MemoEditor(props: {
   let editor: TextareaRenderable | undefined
   const onResize: () => void = (): void => { setTerminalHeight(props.context.renderer.terminalHeight) }
   const titleChanged: (value: string) => void = (value: string): void => { setTitle(value) }
+  const focusTitle: (event: MouseEvent) => void = (event: MouseEvent): void => {
+    if (event.button === 0) titleInput?.focus()
+  }
+  const focusContent: (event: MouseEvent) => void = (event: MouseEvent): void => {
+    if (event.button === 0) editor?.focus()
+  }
   const contentChanged: (value: unknown) => void = (value: unknown): void => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content())
   }
@@ -178,7 +184,7 @@ function MemoEditor(props: {
         <b>Title</b>
       </text>
       <input ref={(value: InputRenderable): void => { titleInput = value }} value={title()} placeholder="Memo title"
-        onInput={titleChanged} onSubmit={(): void => { editor?.focus() }} />
+        onMouseDown={focusTitle} onInput={titleChanged} onSubmit={(): void => { editor?.focus() }} />
       <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
         <b>Content</b>
       </text>
@@ -190,11 +196,10 @@ function MemoEditor(props: {
           { name: "return", ctrl: true, action: "newline" },
           { name: "kpenter", ctrl: true, action: "newline" },
           { name: "linefeed", ctrl: true, action: "newline" },
-          { name: "s", ctrl: true, action: "submit" },
         ]}
         onSubmit={(): void => { void save() }}
         height={Math.max(5, terminalHeight() - 12)}
-        onContentChange={contentChanged} />
+        onMouseDown={focusContent} onContentChange={contentChanged} />
       <box flexDirection="row" gap={2}>
         <text fg={props.context.theme.text.base} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, (): void => { void save() })}>
@@ -203,7 +208,7 @@ function MemoEditor(props: {
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Title Enter → content · Content Enter save · Ctrl+Enter newline · Ctrl+S save · Esc cancel
+          Title Enter → content · Content Enter save · Ctrl+Enter newline · Arrows move cursor · Esc cancel
         </text>
       </box>
     </box>
