@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
-import type { InputRenderable, MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
+import type { MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import { createEffect, createSignal, For, onCleanup, onMount, Show, type Accessor, type Setter } from "solid-js"
 import type { Store } from "solid-js/store"
@@ -126,49 +126,6 @@ function MemoDetail(props: {
   )
 }
 
-function MemoTitleEditor(props: {
-  context: Plugin.Context
-  initialTitle: string
-  onSubmit: (title: string) => void
-  onCancel: () => void
-}): JSX.Element {
-  const [title, setTitle]: [Accessor<string>, Setter<string>] = createSignal<string>(props.initialTitle)
-  let titleInput: InputRenderable | undefined
-  const titleChanged: (value: string) => void = (value: string): void => { setTitle(value) }
-  const submit: () => void = (): void => {
-    const cleanTitle: string = title().trim()
-    if (cleanTitle.length === 0) {
-      props.context.ui.toast.show({ title: "Memos", message: "A memo title is required", variant: "error" })
-      return
-    }
-    props.onSubmit(cleanTitle)
-  }
-
-  onMount((): void => {
-    props.context.ui.dialog.set({ size: "xlarge", centered: true })
-    titleInput?.focus()
-  })
-
-  return (
-    <box padding={1} gap={1}>
-      <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
-        <b>Title</b>
-      </text>
-      <input ref={(value: InputRenderable): void => { titleInput = value }} value={title()} placeholder="Memo title"
-        onInput={titleChanged} onSubmit={submit} />
-      <box flexDirection="row" gap={2}>
-        <text fg={props.context.theme.text.base} height={1} wrapMode="none"
-          onMouseUp={(event: MouseEvent): void => click(event, submit)}>Continue</text>
-        <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
-          onMouseUp={(event: MouseEvent): void => click(event, props.onCancel)}>Cancel</text>
-        <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Enter continue · Esc cancel
-        </text>
-      </box>
-    </box>
-  )
-}
-
 function MemoContentEditor(props: {
   context: Plugin.Context
   initialContent: string
@@ -284,10 +241,30 @@ function openMemoEditor(context: Plugin.Context, options: {
     void editInDefaultEditor(title, command)
   }
 
-  context.ui.dialog.show((): JSX.Element => (
-    <MemoTitleEditor context={context} initialTitle={options.initialTitle}
-      onSubmit={startContent} onCancel={cancel} />
-  ))
+  const promptTitle: () => Promise<void> = async (): Promise<void> => {
+    let current: string = options.initialTitle
+    for (;;) {
+      const raw: string | undefined = await context.ui.dialog.prompt({
+        title: "Memo title",
+        placeholder: "Memo title",
+        value: current,
+      })
+      if (raw === undefined) {
+        cancel()
+        return
+      }
+      const clean: string = raw.trim()
+      if (clean.length === 0) {
+        context.ui.toast.show({ title: "Memos", message: "A memo title is required", variant: "error" })
+        current = ""
+        continue
+      }
+      startContent(clean)
+      return
+    }
+  }
+
+  void promptTitle()
 }
 
 function MemosPanel(props: {

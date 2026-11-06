@@ -55,9 +55,9 @@ npm run check
 ```
 
 Each group has its own **New** action. Creating or editing a memo (`e` in the
-detail view) opens a title screen first; press **Enter** or click **Continue** to
-advance. The content then opens in your default terminal editor (`$VISUAL` or
-`$EDITOR`); save and quit the editor to save the memo. When no editor is
-configured, content falls back to an in-app textarea, where **Enter** saves and
+detail view) opens a title prompt first; press **Enter** to continue. The
+content then opens in your default terminal editor (`$VISUAL` or `$EDITOR`);
+save and quit the editor to save the memo. When no editor is configured,
+content falls back to an in-app textarea, where **Enter** saves and
 **Ctrl+Enter** inserts a line break. **Esc** or **Cancel** discards unsaved
 changes.
