@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
-import type { MouseEvent, ScrollBoxRenderable } from "@opentui/core"
+import type { MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import { createEffect, createSignal, For, onCleanup, onMount, Show, type Accessor, type Setter } from "solid-js"
 import type { Store } from "solid-js/store"
@@ -108,6 +108,74 @@ function MemoDetail(props: {
   )
 }
 
+function MemoEditor(props: {
+  context: Plugin.Context
+  title: string
+  initialContent: string
+  onSave: (content: string) => Promise<void>
+}): JSX.Element {
+  const [terminalHeight, setTerminalHeight]: [Accessor<number>, Setter<number>] = createSignal<number>(props.context.renderer.terminalHeight)
+  const [content, setContent]: [Accessor<string>, Setter<string>] = createSignal<string>(props.initialContent)
+  const [saving, setSaving]: [Accessor<boolean>, Setter<boolean>] = createSignal<boolean>(false)
+  let editor: TextareaRenderable | undefined
+  const onResize: () => void = (): void => { setTerminalHeight(props.context.renderer.terminalHeight) }
+  const contentChanged: (value: unknown) => void = (value: unknown): void => {
+    setContent(typeof value === "string" ? value : editor?.plainText ?? content())
+  }
+  const cancel: () => void = (): void => {
+    if (saving()) return
+    props.context.ui.dialog.clear()
+  }
+  const save: () => Promise<void> = async (): Promise<void> => {
+    if (saving()) return
+    setSaving(true)
+    try {
+      await props.onSave(content())
+      setSaving(false)
+      props.context.ui.dialog.clear()
+    } catch (error: unknown) {
+      setSaving(false)
+      props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
+    }
+  }
+
+  props.context.keymap.layer(() => ({
+    mode: "modal",
+    commands: [
+      { bind: "ctrl+s", run: (): Promise<void> => save() },
+      { bind: "escape", run: (): void => cancel() },
+    ],
+  }))
+
+  onMount((): void => {
+    props.context.ui.dialog.set({ size: "xlarge", centered: true })
+    props.context.renderer.on("resize", onResize)
+  })
+  onCleanup((): void => { props.context.renderer.off("resize", onResize) })
+
+  return (
+    <box padding={1} gap={1}>
+      <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
+        <b>{props.title}</b>
+      </text>
+      <textarea ref={(value: TextareaRenderable): void => { editor = value }} focused initialValue={props.initialContent} placeholder="Write memo content…" wrapMode="word"
+        height={Math.max(5, terminalHeight() - 12)}
+        onContentChange={contentChanged} />
+      <box flexDirection="row" gap={2}>
+        <text fg={props.context.theme.text.base} height={1} wrapMode="none"
+          onMouseUp={(event: MouseEvent): void => click(event, (): void => { void save() })}>
+          {saving() ? "Saving…" : "Save"}
+        </text>
+        <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
+          onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
+        <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
+          Enter newline · Ctrl+S save · Esc cancel
+        </text>
+      </box>
+    </box>
+  )
+}
+
 function MemosPanel(props: {
   context: Plugin.Context
   repository: MemoRepository
@@ -149,10 +217,14 @@ function MemosPanel(props: {
     try {
       const title: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo title", placeholder: "Title" })
       if (title === undefined || title.trim().length === 0) return
-      const content: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo content", placeholder: "Memo text" })
-      if (content === undefined) return
-      await props.repository.add(group, title.trim(), content)
-      await refresh()
+      const cleanTitle: string = title.trim()
+      props.context.ui.dialog.show((): JSX.Element => (
+        <MemoEditor context={props.context} title={cleanTitle} initialContent=""
+          onSave={async (content: string): Promise<void> => {
+            await props.repository.add(group, cleanTitle, content)
+            await refresh()
+          }} />
+      ))
     } catch (error: unknown) {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }

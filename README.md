@@ -54,6 +54,6 @@ npm install --ignore-scripts --no-audit --no-fund
 npm run check
 ```
 
-Each group has its own **New** action, which asks for a title and content with
-separate single-line TUI prompts. Existing JSON entries can contain multiline
-Markdown. A multiline editor is follow-up work.
+Each group has its own **New** action. After entering a title, a multiline editor
+accepts content: **Enter** inserts a line break, **Ctrl+S** or **Save** stores
+the memo, and **Esc** or **Cancel** discards it.
