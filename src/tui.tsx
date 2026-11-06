@@ -177,8 +177,8 @@ function MemoEditor(props: {
       bind: "up",
       run: (): void | false => {
         if (!editor) return false
-        const cursor = editor.logicalCursor
-        if (cursor.row !== 0 || cursor.col !== 0) return false
+        const cursor = editor.visualCursor
+        if (cursor.logicalRow !== 0 || cursor.visualRow !== 0) return false
         titleInput?.focus()
       },
     }],
@@ -221,7 +221,7 @@ function MemoEditor(props: {
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Title Enter → content · Content Enter save · Ctrl+Enter newline · ↑ at start → title · Esc cancel
+          Title Enter → content · Content Enter save · Ctrl+Enter newline · ↑ on first line → title · Esc cancel
         </text>
       </box>
     </box>
