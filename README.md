@@ -58,6 +58,6 @@ Each group has its own **New** action. The editor has separate title and
 multiline content fields; press **Enter** in the title to move to content, and
 press **Enter** in content to save. **Ctrl+Enter** inserts a line break; **Save**
 also saves. Click either field to focus it; arrow keys move within content, and
-**Up** on the first content line returns focus to the title. Press **e** in a
-memo's detail view to edit its title and content.
+**Tab** moves from title to content while **Shift+Tab** returns to the title.
+Press **e** in a memo's detail view to edit its title and content.
 **Esc** or **Cancel** discards unsaved changes.

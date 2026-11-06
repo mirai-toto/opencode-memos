@@ -172,16 +172,12 @@ function MemoEditor(props: {
   }
 
   props.context.keymap.layer(() => ({
+    target: () => titleInput,
+    commands: [{ bind: "tab", run: (): void => { editor?.focus() } }],
+  }))
+  props.context.keymap.layer(() => ({
     target: () => editor,
-    commands: [{
-      bind: "up",
-      run: (): void | false => {
-        if (!editor) return false
-        const cursor = editor.visualCursor
-        if (cursor.logicalRow !== 0 || cursor.visualRow !== 0) return false
-        titleInput?.focus()
-      },
-    }],
+    commands: [{ bind: "shift+tab", run: (): void => { titleInput?.focus() } }],
   }))
 
   onMount((): void => {
@@ -221,7 +217,7 @@ function MemoEditor(props: {
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Title Enter → content · Content Enter save · Ctrl+Enter newline · ↑ on first line → title · Esc cancel
+          Title Tab/Enter → content · Shift+Tab → title · Content Enter save · Ctrl+Enter newline · Esc cancel
         </text>
       </box>
     </box>
