@@ -438,7 +438,7 @@ function MemoEditor(props) {
   props.context.keymap.layer(() => ({
     target: () => editor,
     commands: [{
-      bind: "shift+tab",
+      bind: "tab",
       run: () => {
         titleInput?.focus();
       }
@@ -530,7 +530,7 @@ function MemoEditor(props) {
     _$setProp(_el$19, "height", 1);
     _$setProp(_el$19, "wrapMode", "none");
     _$setProp(_el$19, "onMouseUp", (event) => click(event, cancel));
-    _$insertNode(_el$21, _$createTextNode(`Title Tab/Enter \u2192 content \xB7 Shift+Tab \u2192 title \xB7 Content Enter save \xB7 Ctrl+Enter newline \xB7 Esc cancel`));
+    _$insertNode(_el$21, _$createTextNode(`Tab switches fields \xB7 Title Enter \u2192 content \xB7 Content Enter save \xB7 Ctrl+Enter newline \xB7 Esc cancel`));
     _$setProp(_el$21, "height", 1);
     _$setProp(_el$21, "wrapMode", "none");
     _$setProp(_el$21, "truncate", true);
