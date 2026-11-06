@@ -358,16 +358,6 @@ function MemoEditor(props) {
       });
     }
   };
-  props.context.keymap.layer(() => ({
-    mode: "modal",
-    commands: [{
-      bind: "ctrl+s",
-      run: () => save()
-    }, {
-      bind: "escape",
-      run: () => cancel()
-    }]
-  }));
   onMount(() => {
     props.context.ui.dialog.set({
       size: "xlarge",
@@ -396,6 +386,14 @@ function MemoEditor(props) {
     _$setProp(_el$11, "focused", true);
     _$setProp(_el$11, "placeholder", "Write memo content\u2026");
     _$setProp(_el$11, "wrapMode", "word");
+    _$setProp(_el$11, "keyBindings", [{
+      name: "s",
+      ctrl: true,
+      action: "submit"
+    }]);
+    _$setProp(_el$11, "onSubmit", () => {
+      save();
+    });
     _$setProp(_el$11, "onContentChange", contentChanged);
     _$insertNode(_el$12, _el$13);
     _$insertNode(_el$12, _el$14);

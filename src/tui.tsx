@@ -139,14 +139,6 @@ function MemoEditor(props: {
     }
   }
 
-  props.context.keymap.layer(() => ({
-    mode: "modal",
-    commands: [
-      { bind: "ctrl+s", run: (): Promise<void> => save() },
-      { bind: "escape", run: (): void => cancel() },
-    ],
-  }))
-
   onMount((): void => {
     props.context.ui.dialog.set({ size: "xlarge", centered: true })
     props.context.renderer.on("resize", onResize)
@@ -159,6 +151,8 @@ function MemoEditor(props: {
         <b>{props.title}</b>
       </text>
       <textarea ref={(value: TextareaRenderable): void => { editor = value }} focused initialValue={props.initialContent} placeholder="Write memo content…" wrapMode="word"
+        keyBindings={[{ name: "s", ctrl: true, action: "submit" }]}
+        onSubmit={(): void => { void save() }}
         height={Math.max(5, terminalHeight() - 12)}
         onContentChange={contentChanged} />
       <box flexDirection="row" gap={2}>
