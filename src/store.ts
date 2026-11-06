@@ -43,11 +43,15 @@ export class MemoRepository {
     }
   }
 
-  async add(group: string, content: string): Promise<Memo> {
+  async add(group: string, title: string, content: string): Promise<Memo> {
     const current: MemoGroup = await this.read(group)
-    const memo: Memo = { id: this.idFactory(), checked: false, deleted: false, content }
-    await this.write(group, { version: 1, memos: [...current.memos, memo] })
+    const memo: Memo = { id: this.idFactory(), title, checked: false, deleted: false, content }
+    await this.write(group, { version: 2, memos: [...current.memos, memo] })
     return memo
+  }
+
+  async updateTitle(group: string, memoID: string, title: string): Promise<void> {
+    await this.update(group, memoID, (memo: Memo): Memo => ({ ...memo, title }))
   }
 
   async updateContent(group: string, memoID: string, content: string): Promise<void> {
@@ -71,7 +75,7 @@ export class MemoRepository {
       return change(memo)
     })
     if (!found) throw new Error(`Memo ${memoID} was not found in group ${group}`)
-    await this.write(group, { version: 1, memos })
+    await this.write(group, { version: 2, memos })
   }
 
   private async write(group: string, data: MemoGroup): Promise<void> {

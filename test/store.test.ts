@@ -19,17 +19,19 @@ test("stores arbitrary Markdown content and memo settings per group", async (): 
   await withTemporaryDirectory(async (directory: string): Promise<void> => {
     const repository: MemoRepository = new MemoRepository(directory, (): string => "memo-1")
     const content: string = "# A heading\n\nUnstructured notes:\n- first\n- second"
-    const created: Memo = await repository.add("personal", content)
+    const created: Memo = await repository.add("personal", "A heading", content)
 
-    assert.deepEqual(created, { id: "memo-1", checked: false, deleted: false, content })
+    assert.deepEqual(created, { id: "memo-1", title: "A heading", checked: false, deleted: false, content })
     await repository.setChecked("personal", created.id, true)
     await repository.setDeleted("personal", created.id, true)
+    await repository.updateTitle("personal", created.id, "Renamed heading")
+    await repository.updateContent("personal", created.id, "Updated body")
 
     assert.deepEqual(await repository.read("personal"), {
-      version: 1,
-      memos: [{ ...created, checked: true, deleted: true }],
+      version: 2,
+      memos: [{ ...created, title: "Renamed heading", checked: true, deleted: true, content: "Updated body" }],
     })
-    assert.deepEqual(await repository.read("work"), { version: 1, memos: [] })
+    assert.deepEqual(await repository.read("work"), { version: 2, memos: [] })
     assert.deepEqual(await repository.listGroups(), ["personal"])
   })
 })
@@ -44,7 +46,7 @@ test("does not alter a legacy memo.md when JSON data is absent", async (): Promi
 
     const repository: MemoRepository = new MemoRepository(directory)
     assert.deepEqual(await repository.listGroups(), ["personal"])
-    assert.deepEqual(await repository.read("personal"), { version: 1, memos: [] })
+    assert.deepEqual(await repository.read("personal"), { version: 2, memos: [] })
     assert.equal(await readFile(legacyPath, "utf8"), legacyText)
   })
 })
@@ -52,7 +54,7 @@ test("does not alter a legacy memo.md when JSON data is absent", async (): Promi
 test("rejects invalid group names and malformed JSON rather than overwriting it", async (): Promise<void> => {
   await withTemporaryDirectory(async (directory: string): Promise<void> => {
     const repository: MemoRepository = new MemoRepository(directory)
-    await assert.rejects(repository.add("../outside", "unsafe"), /Invalid memo group name/)
+    await assert.rejects(repository.add("../outside", "Title", "unsafe"), /Invalid memo group name/)
 
     const groupDirectory: string = join(directory, "personal")
     await mkdir(groupDirectory)

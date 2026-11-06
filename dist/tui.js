@@ -20,7 +20,7 @@ import { join, resolve } from "path";
 
 // src/model.ts
 function emptyMemoGroup() {
-  return { version: 1, memos: [] };
+  return { version: 2, memos: [] };
 }
 function parseMemoGroup(text, source) {
   let value;
@@ -31,7 +31,7 @@ function parseMemoGroup(text, source) {
   }
   if (!isRecord(value))
     throw new Error(`${source} must contain a JSON object`);
-  if (value.version !== 1)
+  if (value.version !== 2)
     throw new Error(`${source} has unsupported version ${String(value.version)}`);
   if (!Array.isArray(value.memos))
     throw new Error(`${source} must contain a memos array`);
@@ -44,6 +44,9 @@ function parseMemoGroup(text, source) {
     }
     if (seen.has(entry.id))
       throw new Error(`${source} contains duplicate memo id ${entry.id}`);
+    if (typeof entry.title !== "string" || entry.title.trim().length === 0) {
+      throw new Error(`${source} memo ${entry.id} must have a non-empty title`);
+    }
     if (typeof entry.checked !== "boolean")
       throw new Error(`${source} memo ${entry.id} must have a boolean checked field`);
     if (typeof entry.deleted !== "boolean")
@@ -51,17 +54,22 @@ function parseMemoGroup(text, source) {
     if (typeof entry.content !== "string")
       throw new Error(`${source} memo ${entry.id} must have string content`);
     seen.add(entry.id);
-    return { id: entry.id, checked: entry.checked, deleted: entry.deleted, content: entry.content };
+    return { id: entry.id, title: entry.title, checked: entry.checked, deleted: entry.deleted, content: entry.content };
   });
-  return { version: 1, memos };
+  return { version: 2, memos };
 }
 function serializeMemoGroup(group) {
+  if (group.version !== 2)
+    throw new Error(`Unsupported memo group version ${String(group.version)}`);
   const seen = new Set;
   for (const memo of group.memos) {
-    if (memo.id.length === 0)
+    if (typeof memo.id !== "string" || memo.id.length === 0)
       throw new Error("Memo id must not be empty");
     if (seen.has(memo.id))
       throw new Error(`Duplicate memo id ${memo.id}`);
+    if (typeof memo.title !== "string" || memo.title.trim().length === 0) {
+      throw new Error(`Memo ${memo.id} must have a non-empty title`);
+    }
     if (typeof memo.checked !== "boolean" || typeof memo.deleted !== "boolean" || typeof memo.content !== "string") {
       throw new Error(`Memo ${memo.id} has invalid fields`);
     }
@@ -105,11 +113,14 @@ class MemoRepository {
       throw error;
     }
   }
-  async add(group, content) {
+  async add(group, title, content) {
     const current = await this.read(group);
-    const memo = { id: this.idFactory(), checked: false, deleted: false, content };
-    await this.write(group, { version: 1, memos: [...current.memos, memo] });
+    const memo = { id: this.idFactory(), title, checked: false, deleted: false, content };
+    await this.write(group, { version: 2, memos: [...current.memos, memo] });
     return memo;
+  }
+  async updateTitle(group, memoID, title) {
+    await this.update(group, memoID, (memo) => ({ ...memo, title }));
   }
   async updateContent(group, memoID, content) {
     await this.update(group, memoID, (memo) => ({ ...memo, content }));
@@ -131,7 +142,7 @@ class MemoRepository {
     });
     if (!found)
       throw new Error(`Memo ${memoID} was not found in group ${group}`);
-    await this.write(group, { version: 1, memos });
+    await this.write(group, { version: 2, memos });
   }
   async write(group, data) {
     const text = serializeMemoGroup(data);
@@ -174,11 +185,6 @@ function click(event, action) {
     return;
   event.stopPropagation();
   action();
-}
-function memoTitle(memo) {
-  const firstLine = memo.content.split(/\r?\n/).find((line) => line.trim().length > 0);
-  const title = (firstLine ?? "Untitled memo").replace(/^\s{0,3}#{1,6}\s+/, "").trim();
-  return title.length > 48 ? `${title.slice(0, 45)}\u2026` : title;
 }
 function errorMessage(error) {
   return error instanceof Error ? error.message : "Unable to read memos";
@@ -286,7 +292,7 @@ function MemoDetail(props) {
     _$setProp(_el$2, "height", 1);
     _$insertNode(_el$3, _el$4);
     _$insert(_el$3, () => props.memo.checked ? "\u2713" : "\u25CB", _el$4);
-    _$insert(_el$3, () => memoTitle(props.memo), null);
+    _$insert(_el$3, () => props.memo.title, null);
     _$insertNode(_el$5, _el$6);
     _$use((value) => {
       scroll = value;
@@ -392,13 +398,19 @@ function MemosPanel(props) {
   };
   const addMemo = async () => {
     try {
+      const title = await props.context.ui.dialog.prompt({
+        title: "New memo title",
+        placeholder: "Title"
+      });
+      if (title === undefined || title.trim().length === 0)
+        return;
       const content = await props.context.ui.dialog.prompt({
-        title: "New memo",
+        title: "New memo content",
         placeholder: "Memo text"
       });
-      if (content === undefined || content.trim().length === 0)
+      if (content === undefined)
         return;
-      await props.repository.add(state().group, content);
+      await props.repository.add(state().group, title.trim(), content);
       await refresh(state().group);
     } catch (error) {
       props.context.ui.toast.show({
@@ -560,7 +572,7 @@ function MemosPanel(props) {
             _$setProp(_el$29, "truncate", true);
             _$setProp(_el$29, "height", 1);
             _$setProp(_el$29, "onMouseUp", (event) => click(event, () => openMemo(memo)));
-            _$insert(_el$29, () => memoTitle(memo));
+            _$insert(_el$29, () => memo.title);
             _$insert(_el$27, _$createComponent(Show, {
               get when() {
                 return !memo.deleted;

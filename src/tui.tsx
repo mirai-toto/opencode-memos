@@ -27,12 +27,6 @@ function click(event: MouseEvent, action: () => void): void {
   action()
 }
 
-function memoTitle(memo: Memo): string {
-  const firstLine: string | undefined = memo.content.split(/\r?\n/).find((line: string): boolean => line.trim().length > 0)
-  const title: string = (firstLine ?? "Untitled memo").replace(/^\s{0,3}#{1,6}\s+/, "").trim()
-  return title.length > 48 ? `${title.slice(0, 45)}…` : title
-}
-
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unable to read memos"
 }
@@ -98,7 +92,7 @@ function MemoDetail(props: {
   return (
     <box padding={1} gap={1}>
       <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
-        <b>{props.memo.checked ? "✓" : "○"} {memoTitle(props.memo)}</b>
+        <b>{props.memo.checked ? "✓" : "○"} {props.memo.title}</b>
       </text>
       <scrollbox ref={(value: ScrollBoxRenderable): void => { scroll = value }} focused
         height={Math.max(3, terminalHeight() - 10)} scrollY scrollX>
@@ -158,9 +152,11 @@ function MemosPanel(props: {
 
   const addMemo: () => Promise<void> = async (): Promise<void> => {
     try {
-      const content: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo", placeholder: "Memo text" })
-      if (content === undefined || content.trim().length === 0) return
-      await props.repository.add(state().group, content)
+      const title: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo title", placeholder: "Title" })
+      if (title === undefined || title.trim().length === 0) return
+      const content: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo content", placeholder: "Memo text" })
+      if (content === undefined) return
+      await props.repository.add(state().group, title.trim(), content)
       await refresh(state().group)
     } catch (error: unknown) {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
@@ -233,7 +229,7 @@ function MemosPanel(props: {
             <text fg={memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base}
               wrapMode="none" truncate height={1}
               onMouseUp={(event: MouseEvent): void => click(event, (): void => openMemo(memo))}>
-              {memoTitle(memo)}
+              {memo.title}
             </text>
             <Show when={!memo.deleted}>
               <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
