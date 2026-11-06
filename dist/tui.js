@@ -389,6 +389,15 @@ function MemoEditor(props) {
     if (event.button === 0)
       editor?.focus();
   };
+  const contentKeyDown = (event) => {
+    if (event.name !== "up" || !editor)
+      return;
+    const cursor = editor.logicalCursor;
+    if (cursor.row !== 0 || cursor.col !== 0)
+      return;
+    event.preventDefault();
+    titleInput?.focus();
+  };
   const contentChanged = (value) => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content());
   };
@@ -496,6 +505,7 @@ function MemoEditor(props) {
       save();
     });
     _$setProp(_el$16, "onMouseDown", focusContent);
+    _$setProp(_el$16, "onKeyDown", contentKeyDown);
     _$setProp(_el$16, "onContentChange", contentChanged);
     _$insertNode(_el$17, _el$18);
     _$insertNode(_el$17, _el$19);
@@ -512,7 +522,7 @@ function MemoEditor(props) {
     _$setProp(_el$19, "height", 1);
     _$setProp(_el$19, "wrapMode", "none");
     _$setProp(_el$19, "onMouseUp", (event) => click(event, cancel));
-    _$insertNode(_el$21, _$createTextNode(`Title Enter \u2192 content \xB7 Content Enter save \xB7 Ctrl+Enter newline \xB7 Arrows move cursor \xB7 Esc cancel`));
+    _$insertNode(_el$21, _$createTextNode(`Title Enter \u2192 content \xB7 Content Enter save \xB7 Ctrl+Enter newline \xB7 \u2191 at start \u2192 title \xB7 Esc cancel`));
     _$setProp(_el$21, "height", 1);
     _$setProp(_el$21, "wrapMode", "none");
     _$setProp(_el$21, "truncate", true);

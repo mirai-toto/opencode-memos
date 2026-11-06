@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
-import type { InputRenderable, MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
+import type { InputRenderable, KeyEvent, MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import { createEffect, createSignal, For, onCleanup, onMount, Show, type Accessor, type Setter } from "solid-js"
 import type { Store } from "solid-js/store"
@@ -145,6 +145,13 @@ function MemoEditor(props: {
   const focusContent: (event: MouseEvent) => void = (event: MouseEvent): void => {
     if (event.button === 0) editor?.focus()
   }
+  const contentKeyDown: (event: KeyEvent) => void = (event: KeyEvent): void => {
+    if (event.name !== "up" || !editor) return
+    const cursor = editor.logicalCursor
+    if (cursor.row !== 0 || cursor.col !== 0) return
+    event.preventDefault()
+    titleInput?.focus()
+  }
   const contentChanged: (value: unknown) => void = (value: unknown): void => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content())
   }
@@ -199,7 +206,7 @@ function MemoEditor(props: {
         ]}
         onSubmit={(): void => { void save() }}
         height={Math.max(5, terminalHeight() - 12)}
-        onMouseDown={focusContent} onContentChange={contentChanged} />
+        onMouseDown={focusContent} onKeyDown={contentKeyDown} onContentChange={contentChanged} />
       <box flexDirection="row" gap={2}>
         <text fg={props.context.theme.text.base} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, (): void => { void save() })}>
@@ -208,7 +215,7 @@ function MemoEditor(props: {
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Title Enter → content · Content Enter save · Ctrl+Enter newline · Arrows move cursor · Esc cancel
+          Title Enter → content · Content Enter save · Ctrl+Enter newline · ↑ at start → title · Esc cancel
         </text>
       </box>
     </box>
