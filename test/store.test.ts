@@ -26,10 +26,11 @@ test("stores arbitrary Markdown content and memo settings per group", async (): 
     await repository.setDeleted("personal", created.id, true)
     await repository.updateTitle("personal", created.id, "Renamed heading")
     await repository.updateContent("personal", created.id, "Updated body")
+    await repository.updateMemo("personal", created.id, "Final title", "First line\nSecond line")
 
     assert.deepEqual(await repository.read("personal"), {
       version: 2,
-      memos: [{ ...created, title: "Renamed heading", checked: true, deleted: true, content: "Updated body" }],
+      memos: [{ ...created, title: "Final title", checked: true, deleted: true, content: "First line\nSecond line" }],
     })
     assert.deepEqual(await repository.read("work"), { version: 2, memos: [] })
     await repository.add("ideas", "Example group memo", "A memo in another group.")

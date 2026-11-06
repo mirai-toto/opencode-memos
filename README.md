@@ -54,6 +54,8 @@ npm install --ignore-scripts --no-audit --no-fund
 npm run check
 ```
 
-Each group has its own **New** action. After entering a title, a multiline editor
-accepts content: **Ctrl+Enter** inserts a line break; **Enter**, **Ctrl+S**, or
-**Save** stores the memo; **Esc** or **Cancel** discards it.
+Each group has its own **New** action. The editor has separate title and
+multiline content fields; press **Enter** in the title to move to content, and
+press **Enter** in content to save. **Ctrl+Enter** inserts a line break; **Ctrl+S**
+or **Save** also saves. Press **e** in a memo's detail view to edit its title and
+content. **Esc** or **Cancel** discards unsaved changes.

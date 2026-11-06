@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
-import type { MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
+import type { InputRenderable, MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import { createEffect, createSignal, For, onCleanup, onMount, Show, type Accessor, type Setter } from "solid-js"
 import type { Store } from "solid-js/store"
@@ -70,6 +70,21 @@ function MemoDetail(props: {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }
   }
+  const showDetail: () => void = (): void => {
+    props.context.ui.dialog.show((): JSX.Element => (
+      <MemoDetail context={props.context} repository={props.repository} group={props.group} memo={props.memo} onChanged={props.onChanged} />
+    ))
+  }
+  const editMemo: () => void = (): void => {
+    props.context.ui.dialog.show((): JSX.Element => (
+      <MemoEditor context={props.context} initialTitle={props.memo.title} initialContent={props.memo.content}
+        onCancel={showDetail}
+        onSave={async (title: string, content: string): Promise<void> => {
+          await props.repository.updateMemo(props.group, props.memo.id, title, content)
+          await props.onChanged()
+        }} />
+    ))
+  }
 
   props.context.keymap.layer(() => ({
     mode: "modal",
@@ -77,6 +92,7 @@ function MemoDetail(props: {
       { bind: "x", run: (): Promise<void> => toggleChecked() },
       { bind: "d", run: (): Promise<void> => changeDeleted(true) },
       { bind: "r", run: (): Promise<void> => changeDeleted(false) },
+      { bind: "e", run: (): void => editMemo() },
       { bind: "pageup", run: (): void => { scroll?.scrollBy(-Math.max(1, Math.floor(scroll.viewport.height / 2)), "absolute") } },
       { bind: "pagedown", run: (): void => { scroll?.scrollBy(Math.max(1, Math.floor(scroll.viewport.height / 2)), "absolute") } },
       { bind: "up", run: (): void => { scroll?.scrollBy(-1, "absolute") } },
@@ -102,7 +118,7 @@ function MemoDetail(props: {
         <text fg={props.context.theme.text.base} wrapMode="none" flexShrink={0} height={contentHeight}>{content}</text>
       </scrollbox>
       <text fg={props.context.theme.text.muted} wrapMode="none" truncate>
-        ↑↓/PgUp/PgDn scroll · x check/uncheck · {props.memo.deleted ? "r restore" : "d hide"} · Esc close
+        ↑↓/PgUp/PgDn scroll · e edit · x check/uncheck · {props.memo.deleted ? "r restore" : "d hide"} · Esc close
       </text>
     </box>
   )
@@ -110,27 +126,37 @@ function MemoDetail(props: {
 
 function MemoEditor(props: {
   context: Plugin.Context
-  title: string
+  initialTitle: string
   initialContent: string
-  onSave: (content: string) => Promise<void>
+  onSave: (title: string, content: string) => Promise<void>
+  onCancel?: () => void
 }): JSX.Element {
   const [terminalHeight, setTerminalHeight]: [Accessor<number>, Setter<number>] = createSignal<number>(props.context.renderer.terminalHeight)
+  const [title, setTitle]: [Accessor<string>, Setter<string>] = createSignal<string>(props.initialTitle)
   const [content, setContent]: [Accessor<string>, Setter<string>] = createSignal<string>(props.initialContent)
   const [saving, setSaving]: [Accessor<boolean>, Setter<boolean>] = createSignal<boolean>(false)
+  let titleInput: InputRenderable | undefined
   let editor: TextareaRenderable | undefined
   const onResize: () => void = (): void => { setTerminalHeight(props.context.renderer.terminalHeight) }
+  const titleChanged: (value: string) => void = (value: string): void => { setTitle(value) }
   const contentChanged: (value: unknown) => void = (value: unknown): void => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content())
   }
   const cancel: () => void = (): void => {
     if (saving()) return
-    props.context.ui.dialog.clear()
+    if (props.onCancel) props.onCancel()
+    else props.context.ui.dialog.clear()
   }
   const save: () => Promise<void> = async (): Promise<void> => {
     if (saving()) return
+    const cleanTitle: string = title().trim()
+    if (cleanTitle.length === 0) {
+      props.context.ui.toast.show({ title: "Memos", message: "A memo title is required", variant: "error" })
+      return
+    }
     setSaving(true)
     try {
-      await props.onSave(content())
+      await props.onSave(cleanTitle, content())
       setSaving(false)
       props.context.ui.dialog.clear()
     } catch (error: unknown) {
@@ -142,15 +168,21 @@ function MemoEditor(props: {
   onMount((): void => {
     props.context.ui.dialog.set({ size: "xlarge", centered: true })
     props.context.renderer.on("resize", onResize)
+    titleInput?.focus()
   })
   onCleanup((): void => { props.context.renderer.off("resize", onResize) })
 
   return (
     <box padding={1} gap={1}>
       <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
-        <b>{props.title}</b>
+        <b>Title</b>
       </text>
-      <textarea ref={(value: TextareaRenderable): void => { editor = value }} focused initialValue={props.initialContent} placeholder="Write memo content…" wrapMode="word"
+      <input ref={(value: InputRenderable): void => { titleInput = value }} value={title()} placeholder="Memo title"
+        onInput={titleChanged} onSubmit={(): void => { editor?.focus() }} />
+      <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
+        <b>Content</b>
+      </text>
+      <textarea ref={(value: TextareaRenderable): void => { editor = value }} initialValue={props.initialContent} placeholder="Write memo content…" wrapMode="word"
         keyBindings={[
           { name: "return", action: "submit" },
           { name: "kpenter", action: "submit" },
@@ -171,7 +203,7 @@ function MemoEditor(props: {
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, cancel)}>Cancel</text>
         <text fg={props.context.theme.text.muted} height={1} wrapMode="none" truncate>
-          Enter save · Ctrl+Enter newline · Ctrl+S save · Esc cancel
+          Title Enter → content · Content Enter save · Ctrl+Enter newline · Ctrl+S save · Esc cancel
         </text>
       </box>
     </box>
@@ -215,21 +247,14 @@ function MemosPanel(props: {
   })
   onCleanup((): void => { requestID += 1 })
 
-  const addMemo: (group: string) => Promise<void> = async (group: string): Promise<void> => {
-    try {
-      const title: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo title", placeholder: "Title" })
-      if (title === undefined || title.trim().length === 0) return
-      const cleanTitle: string = title.trim()
-      props.context.ui.dialog.show((): JSX.Element => (
-        <MemoEditor context={props.context} title={cleanTitle} initialContent=""
-          onSave={async (content: string): Promise<void> => {
-            await props.repository.add(group, cleanTitle, content)
-            await refresh()
-          }} />
-      ))
-    } catch (error: unknown) {
-      props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
-    }
+  const addMemo: (group: string) => void = (group: string): void => {
+    props.context.ui.dialog.show((): JSX.Element => (
+      <MemoEditor context={props.context} initialTitle="" initialContent=""
+        onSave={async (title: string, content: string): Promise<void> => {
+          await props.repository.add(group, title, content)
+          await refresh()
+        }} />
+    ))
   }
 
   const toggleChecked: (group: string, memo: Memo) => Promise<void> = async (group: string, memo: Memo): Promise<void> => {

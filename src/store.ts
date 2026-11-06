@@ -58,6 +58,10 @@ export class MemoRepository {
     await this.update(group, memoID, (memo: Memo): Memo => ({ ...memo, content }))
   }
 
+  async updateMemo(group: string, memoID: string, title: string, content: string): Promise<void> {
+    await this.update(group, memoID, (memo: Memo): Memo => ({ ...memo, title, content }))
+  }
+
   async setChecked(group: string, memoID: string, checked: boolean): Promise<void> {
     await this.update(group, memoID, (memo: Memo): Memo => ({ ...memo, checked }))
   }
