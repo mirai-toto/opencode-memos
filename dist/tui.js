@@ -517,7 +517,7 @@ function MemoContentEditor(props) {
     _$setProp(_el$17, "wrapMode", "none");
     _$setProp(_el$17, "truncate", true);
     _$effect((_p$) => {
-      var _v$5 = props.context.theme.text.base, _v$6 = props.initialContent, _v$7 = Math.max(5, terminalHeight() - 8), _v$8 = props.context.theme.text.base, _v$9 = props.context.theme.text.muted, _v$0 = props.context.theme.text.muted;
+      var _v$5 = props.context.theme.text.base, _v$6 = props.initialContent, _v$7 = Math.max(5, terminalHeight() - 8), _v$8 = props.context.theme.text.action.primary.base, _v$9 = props.context.theme.text.muted, _v$0 = props.context.theme.text.muted;
       _v$5 !== _p$.e && (_p$.e = _$setProp(_el$1, "fg", _v$5, _p$.e));
       _v$6 !== _p$.t && (_p$.t = _$setProp(_el$12, "initialValue", _v$6, _p$.t));
       _v$7 !== _p$.a && (_p$.a = _$setProp(_el$12, "height", _v$7, _p$.a));
@@ -760,9 +760,9 @@ function MemosPanel(props) {
           },
           get children() {
             var _el$25 = _$createElement("text");
-            _$setProp(_el$25, "fg", "#ff7b86");
             _$setProp(_el$25, "maxHeight", 2);
             _$insert(_el$25, () => state().error);
+            _$effect((_$p) => _$setProp(_el$25, "fg", props.context.theme.text.feedback.error.base, _$p));
             return _el$25;
           }
         }), _$createComponent(For, {
@@ -793,9 +793,9 @@ function MemosPanel(props) {
               },
               get children() {
                 var _el$36 = _$createElement("text");
-                _$setProp(_el$36, "fg", "#ff7b86");
                 _$setProp(_el$36, "maxHeight", 2);
                 _$insert(_el$36, () => group.error);
+                _$effect((_$p) => _$setProp(_el$36, "fg", props.context.theme.text.feedback.error.base, _$p));
                 return _el$36;
               }
             }), null);
@@ -846,12 +846,12 @@ function MemosPanel(props) {
                     _$setProp(_el$41, "onMouseUp", (event) => click(event, () => {
                       changeDeleted(group.name, memo, true);
                     }));
-                    _$effect((_$p) => _$setProp(_el$41, "fg", props.context.theme.text.muted, _$p));
+                    _$effect((_$p) => _$setProp(_el$41, "fg", props.context.theme.text.feedback.error.muted, _$p));
                     return _el$41;
                   }
                 }), null);
                 _$effect((_p$) => {
-                  var _v$13 = props.context.theme.text.muted, _v$14 = memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base;
+                  var _v$13 = memo.deleted ? props.context.theme.text.feedback.warning.base : memo.checked ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted, _v$14 = memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base;
                   _v$13 !== _p$.e && (_p$.e = _$setProp(_el$39, "fg", _v$13, _p$.e));
                   _v$14 !== _p$.t && (_p$.t = _$setProp(_el$40, "fg", _v$14, _p$.t));
                   return _p$;
@@ -863,7 +863,7 @@ function MemosPanel(props) {
               })()
             }), null);
             _$effect((_p$) => {
-              var _v$11 = props.context.theme.text.base, _v$12 = props.context.theme.text.muted;
+              var _v$11 = props.context.theme.hue.accent[400], _v$12 = props.context.theme.hue.accent[400];
               _v$11 !== _p$.e && (_p$.e = _$setProp(_el$32, "fg", _v$11, _p$.e));
               _v$12 !== _p$.t && (_p$.t = _$setProp(_el$34, "fg", _v$12, _p$.t));
               return _p$;

@@ -180,7 +180,7 @@ function MemoContentEditor(props: {
         height={Math.max(5, terminalHeight() - 8)}
         onMouseDown={focusContent} onContentChange={contentChanged} />
       <box flexDirection="row" gap={2}>
-        <text fg={props.context.theme.text.base} height={1} wrapMode="none"
+        <text fg={props.context.theme.text.action.primary.base} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, (): void => { void save() })}>
           {saving() ? "Saving…" : "Save"}
         </text>
@@ -360,26 +360,26 @@ function MemosPanel(props: {
           <text fg={props.context.theme.text.muted}>Loading memos…</text>
         </Show>
         <Show when={state().error}>
-          <text fg="#ff7b86" maxHeight={2}>{state().error}</text>
+          <text fg={props.context.theme.text.feedback.error.base} maxHeight={2}>{state().error}</text>
         </Show>
         <For each={state().groups}>{(group: GroupMemos): JSX.Element => (
           <box>
             <box flexDirection="row" gap={2}>
-              <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
+              <text fg={props.context.theme.hue.accent[400]} wrapMode="none" truncate height={1}>
                 <b>{group.name}</b>
               </text>
-              <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
+              <text fg={props.context.theme.hue.accent[400]} height={1} wrapMode="none"
                 onMouseUp={(event: MouseEvent): void => click(event, (): void => { void addMemo(group.name) })}>+ New</text>
             </box>
             <Show when={group.error}>
-              <text fg="#ff7b86" maxHeight={2}>{group.error}</text>
+              <text fg={props.context.theme.text.feedback.error.base} maxHeight={2}>{group.error}</text>
             </Show>
             <Show when={!group.error && visibleMemos(group).length === 0}>
               <text fg={props.context.theme.text.muted}>{props.preferences.showDeleted ? "No memos." : "No active memos."}</text>
             </Show>
             <For each={visibleMemos(group)}>{(memo: Memo): JSX.Element => (
               <box flexDirection="row" gap={1}>
-                <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
+                <text fg={memo.deleted ? props.context.theme.text.feedback.warning.base : memo.checked ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted} wrapMode="none" height={1}
                   onMouseUp={(event: MouseEvent): void => click(event, (): void => { void (memo.deleted ? changeDeleted(group.name, memo, false) : toggleChecked(group.name, memo)) })}>
                   {memo.deleted ? "↶" : memo.checked ? "✓" : "○"}
                 </text>
@@ -389,7 +389,7 @@ function MemosPanel(props: {
                   {memo.title}
                 </text>
                 <Show when={!memo.deleted}>
-                  <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
+                  <text fg={props.context.theme.text.feedback.error.muted} wrapMode="none" height={1}
                     onMouseUp={(event: MouseEvent): void => click(event, (): void => { void changeDeleted(group.name, memo, true) })}>×</text>
                 </Show>
               </box>
