@@ -2,6 +2,7 @@
 
 Browse grouped memos in the OpenCode V2 TUI sidebar. This is an early development
 version; it does not automatically import or modify existing `memo.md` files.
+All available groups are shown at once in separate sidebar sections.
 
 ## Data format
 
@@ -53,6 +54,6 @@ npm install --ignore-scripts --no-audit --no-fund
 npm run check
 ```
 
-The **New** action asks for a title and content with separate single-line TUI
-prompts. Existing JSON entries can contain multiline Markdown. A multiline
-editor is follow-up work.
+Each group has its own **New** action, which asks for a title and content with
+separate single-line TUI prompts. Existing JSON entries can contain multiline
+Markdown. A multiline editor is follow-up work.

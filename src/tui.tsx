@@ -9,14 +9,17 @@ import type { Memo } from "./model.ts"
 
 interface PanelPreferences {
   collapsed: boolean
-  group: string
   showDeleted: boolean
 }
 
-interface PanelState {
-  groups: string[]
-  group: string
+interface GroupMemos {
+  name: string
   memos: Memo[]
+  error?: string
+}
+
+interface PanelState {
+  groups: GroupMemos[]
   loading: boolean
   error?: string
 }
@@ -111,24 +114,26 @@ function MemosPanel(props: {
   preferences: Store<PanelPreferences>
   updatePreferences: (mutation: (draft: PanelPreferences) => void) => void
 }): JSX.Element {
-  const initialGroup: string = props.preferences.group || "personal"
   const [state, setState]: [Accessor<PanelState>, Setter<PanelState>] = createSignal<PanelState>({
-    groups: [initialGroup], group: initialGroup, memos: [], loading: true,
+    groups: [], loading: true,
   })
   let requestID: number = 0
 
-  const refresh: (preferredGroup: string) => Promise<void> = async (preferredGroup: string): Promise<void> => {
+  const refresh: () => Promise<void> = async (): Promise<void> => {
     const currentRequest: number = ++requestID
     setState((current: PanelState): PanelState => ({ ...current, loading: true, error: undefined }))
     try {
-      const groups: string[] = await props.repository.listGroups()
-      const group: string = groups.includes(preferredGroup) ? preferredGroup : groups[0] ?? "personal"
-      if (group !== props.preferences.group) {
-        props.updatePreferences((draft: PanelPreferences): void => { draft.group = group })
-      }
-      const data = await props.repository.read(group)
+      const names: string[] = await props.repository.listGroups()
+      const groups: GroupMemos[] = await Promise.all(names.map(async (name: string): Promise<GroupMemos> => {
+        try {
+          const data = await props.repository.read(name)
+          return { name, memos: data.memos }
+        } catch (error: unknown) {
+          return { name, memos: [], error: errorMessage(error) }
+        }
+      }))
       if (currentRequest !== requestID) return
-      setState({ groups, group, memos: data.memos, loading: false })
+      setState({ groups, loading: false })
     } catch (error: unknown) {
       if (currentRequest !== requestID) return
       setState((current: PanelState): PanelState => ({ ...current, loading: false, error: errorMessage(error) }))
@@ -136,43 +141,33 @@ function MemosPanel(props: {
   }
 
   createEffect((): void => {
-    void refresh(props.preferences.group || "personal")
+    void refresh()
   })
   onCleanup((): void => { requestID += 1 })
 
-  const chooseGroup: () => Promise<void> = async (): Promise<void> => {
-    try {
-      const options = state().groups.map((group: string) => ({ title: group, value: group }))
-      const group: string | undefined = await props.context.ui.dialog.select<string>({ title: "Memo group", options })
-      if (group) props.updatePreferences((draft: PanelPreferences): void => { draft.group = group })
-    } catch (error: unknown) {
-      props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
-    }
-  }
-
-  const addMemo: () => Promise<void> = async (): Promise<void> => {
+  const addMemo: (group: string) => Promise<void> = async (group: string): Promise<void> => {
     try {
       const title: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo title", placeholder: "Title" })
       if (title === undefined || title.trim().length === 0) return
       const content: string | undefined = await props.context.ui.dialog.prompt({ title: "New memo content", placeholder: "Memo text" })
       if (content === undefined) return
-      await props.repository.add(state().group, title.trim(), content)
-      await refresh(state().group)
+      await props.repository.add(group, title.trim(), content)
+      await refresh()
     } catch (error: unknown) {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }
   }
 
-  const toggleChecked: (memo: Memo) => Promise<void> = async (memo: Memo): Promise<void> => {
+  const toggleChecked: (group: string, memo: Memo) => Promise<void> = async (group: string, memo: Memo): Promise<void> => {
     try {
-      await props.repository.setChecked(state().group, memo.id, !memo.checked)
-      await refresh(state().group)
+      await props.repository.setChecked(group, memo.id, !memo.checked)
+      await refresh()
     } catch (error: unknown) {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }
   }
 
-  const changeDeleted: (memo: Memo, deleted: boolean) => Promise<void> = async (memo: Memo, deleted: boolean): Promise<void> => {
+  const changeDeleted: (group: string, memo: Memo, deleted: boolean) => Promise<void> = async (group: string, memo: Memo, deleted: boolean): Promise<void> => {
     try {
       const confirmed: boolean = (await props.context.ui.dialog.confirm({
         title: deleted ? "Hide this memo?" : "Restore this memo?",
@@ -180,21 +175,22 @@ function MemosPanel(props: {
         label: { confirm: deleted ? "Hide" : "Restore", cancel: "Cancel" },
       })) ?? false
       if (!confirmed) return
-      await props.repository.setDeleted(state().group, memo.id, deleted)
-      await refresh(state().group)
+      await props.repository.setDeleted(group, memo.id, deleted)
+      await refresh()
     } catch (error: unknown) {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }
   }
 
-  const openMemo: (memo: Memo) => void = (memo: Memo): void => {
+  const openMemo: (group: string, memo: Memo) => void = (group: string, memo: Memo): void => {
     props.context.ui.dialog.show((): JSX.Element => (
-      <MemoDetail context={props.context} repository={props.repository} group={state().group} memo={memo}
-        onChanged={(): Promise<void> => refresh(state().group)} />
+      <MemoDetail context={props.context} repository={props.repository} group={group} memo={memo}
+        onChanged={(): Promise<void> => refresh()} />
     ))
   }
 
-  const visibleMemos: () => Memo[] = (): Memo[] => state().memos.filter((memo: Memo): boolean => props.preferences.showDeleted || !memo.deleted)
+  const visibleMemos: (group: GroupMemos) => Memo[] = (group: GroupMemos): Memo[] =>
+    group.memos.filter((memo: Memo): boolean => props.preferences.showDeleted || !memo.deleted)
 
   return (
     <box>
@@ -203,38 +199,44 @@ function MemosPanel(props: {
         <b>{props.preferences.collapsed ? "▶" : "▼"} Memos</b>
       </text>
       <Show when={!props.preferences.collapsed}>
-        <box flexDirection="row" gap={2}>
-          <text fg={props.context.theme.text.muted} wrapMode="none" truncate height={1}
-            onMouseUp={(event: MouseEvent): void => click(event, (): void => { void chooseGroup() })}>
-            Group: {state().group} ▾
-          </text>
-          <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
-            onMouseUp={(event: MouseEvent): void => click(event, (): void => { void addMemo() })}>+ New</text>
-        </box>
         <Show when={state().loading}>
           <text fg={props.context.theme.text.muted}>Loading memos…</text>
         </Show>
         <Show when={state().error}>
           <text fg="#ff7b86" maxHeight={2}>{state().error}</text>
         </Show>
-        <Show when={!state().loading && !state().error && visibleMemos().length === 0}>
-          <text fg={props.context.theme.text.muted}>No memos in this group.</text>
-        </Show>
-        <For each={visibleMemos()}>{(memo: Memo): JSX.Element => (
-          <box flexDirection="row" gap={1}>
-            <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
-              onMouseUp={(event: MouseEvent): void => click(event, (): void => { void (memo.deleted ? changeDeleted(memo, false) : toggleChecked(memo)) })}>
-              {memo.deleted ? "↶" : memo.checked ? "✓" : "○"}
-            </text>
-            <text fg={memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base}
-              wrapMode="none" truncate height={1}
-              onMouseUp={(event: MouseEvent): void => click(event, (): void => openMemo(memo))}>
-              {memo.title}
-            </text>
-            <Show when={!memo.deleted}>
-              <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
-                onMouseUp={(event: MouseEvent): void => click(event, (): void => { void changeDeleted(memo, true) })}>×</text>
+        <For each={state().groups}>{(group: GroupMemos): JSX.Element => (
+          <box>
+            <box flexDirection="row" gap={2}>
+              <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
+                <b>{group.name}</b>
+              </text>
+              <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
+                onMouseUp={(event: MouseEvent): void => click(event, (): void => { void addMemo(group.name) })}>+ New</text>
+            </box>
+            <Show when={group.error}>
+              <text fg="#ff7b86" maxHeight={2}>{group.error}</text>
             </Show>
+            <Show when={!group.error && visibleMemos(group).length === 0}>
+              <text fg={props.context.theme.text.muted}>{props.preferences.showDeleted ? "No memos." : "No active memos."}</text>
+            </Show>
+            <For each={visibleMemos(group)}>{(memo: Memo): JSX.Element => (
+              <box flexDirection="row" gap={1}>
+                <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
+                  onMouseUp={(event: MouseEvent): void => click(event, (): void => { void (memo.deleted ? changeDeleted(group.name, memo, false) : toggleChecked(group.name, memo)) })}>
+                  {memo.deleted ? "↶" : memo.checked ? "✓" : "○"}
+                </text>
+                <text fg={memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base}
+                  wrapMode="none" truncate height={1}
+                  onMouseUp={(event: MouseEvent): void => click(event, (): void => openMemo(group.name, memo))}>
+                  {memo.title}
+                </text>
+                <Show when={!memo.deleted}>
+                  <text fg={props.context.theme.text.muted} wrapMode="none" height={1}
+                    onMouseUp={(event: MouseEvent): void => click(event, (): void => { void changeDeleted(group.name, memo, true) })}>×</text>
+                </Show>
+              </box>
+            )}</For>
           </box>
         )}</For>
         <box flexDirection="row" gap={2}>
@@ -243,7 +245,7 @@ function MemosPanel(props: {
             {props.preferences.showDeleted ? "Hide deleted" : "Show deleted"}
           </text>
           <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
-            onMouseUp={(event: MouseEvent): void => click(event, (): void => { void refresh(state().group) })}>↻ Refresh</text>
+            onMouseUp={(event: MouseEvent): void => click(event, (): void => { void refresh() })}>↻ Refresh</text>
         </box>
       </Show>
     </box>
@@ -254,7 +256,7 @@ export default Plugin.define({
   id: "opencode-memos",
   setup(context: Plugin.Context): () => void {
     const [preferences, updatePreferences]: readonly [Store<PanelPreferences>, (mutation: (draft: PanelPreferences) => void) => void] =
-      context.storage.memory<PanelPreferences>("panel", { initial: { collapsed: false, group: "personal", showDeleted: false } })
+      context.storage.memory<PanelPreferences>("panel", { initial: { collapsed: false, showDeleted: false } })
     const repository: MemoRepository = new MemoRepository()
     return context.ui.slot({
       prepend: "sidebar.content",
