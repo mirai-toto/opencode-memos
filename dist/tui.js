@@ -389,15 +389,6 @@ function MemoEditor(props) {
     if (event.button === 0)
       editor?.focus();
   };
-  const contentKeyDown = (event) => {
-    if (event.name !== "up" || !editor)
-      return;
-    const cursor = editor.logicalCursor;
-    if (cursor.row !== 0 || cursor.col !== 0)
-      return;
-    event.preventDefault();
-    titleInput?.focus();
-  };
   const contentChanged = (value) => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content());
   };
@@ -435,6 +426,20 @@ function MemoEditor(props) {
       });
     }
   };
+  props.context.keymap.layer(() => ({
+    target: () => editor,
+    commands: [{
+      bind: "up",
+      run: () => {
+        if (!editor)
+          return false;
+        const cursor = editor.logicalCursor;
+        if (cursor.row !== 0 || cursor.col !== 0)
+          return false;
+        titleInput?.focus();
+      }
+    }]
+  }));
   onMount(() => {
     props.context.ui.dialog.set({
       size: "xlarge",
@@ -505,7 +510,6 @@ function MemoEditor(props) {
       save();
     });
     _$setProp(_el$16, "onMouseDown", focusContent);
-    _$setProp(_el$16, "onKeyDown", contentKeyDown);
     _$setProp(_el$16, "onContentChange", contentChanged);
     _$insertNode(_el$17, _el$18);
     _$insertNode(_el$17, _el$19);

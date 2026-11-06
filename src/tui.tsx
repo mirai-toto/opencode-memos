@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { Plugin } from "@opencode/plugin/tui"
-import type { InputRenderable, KeyEvent, MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
+import type { InputRenderable, MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opentui/core"
 import type { JSX } from "@opentui/solid"
 import { createEffect, createSignal, For, onCleanup, onMount, Show, type Accessor, type Setter } from "solid-js"
 import type { Store } from "solid-js/store"
@@ -145,13 +145,6 @@ function MemoEditor(props: {
   const focusContent: (event: MouseEvent) => void = (event: MouseEvent): void => {
     if (event.button === 0) editor?.focus()
   }
-  const contentKeyDown: (event: KeyEvent) => void = (event: KeyEvent): void => {
-    if (event.name !== "up" || !editor) return
-    const cursor = editor.logicalCursor
-    if (cursor.row !== 0 || cursor.col !== 0) return
-    event.preventDefault()
-    titleInput?.focus()
-  }
   const contentChanged: (value: unknown) => void = (value: unknown): void => {
     setContent(typeof value === "string" ? value : editor?.plainText ?? content())
   }
@@ -177,6 +170,19 @@ function MemoEditor(props: {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }
   }
+
+  props.context.keymap.layer(() => ({
+    target: () => editor,
+    commands: [{
+      bind: "up",
+      run: (): void | false => {
+        if (!editor) return false
+        const cursor = editor.logicalCursor
+        if (cursor.row !== 0 || cursor.col !== 0) return false
+        titleInput?.focus()
+      },
+    }],
+  }))
 
   onMount((): void => {
     props.context.ui.dialog.set({ size: "xlarge", centered: true })
@@ -206,7 +212,7 @@ function MemoEditor(props: {
         ]}
         onSubmit={(): void => { void save() }}
         height={Math.max(5, terminalHeight() - 12)}
-        onMouseDown={focusContent} onKeyDown={contentKeyDown} onContentChange={contentChanged} />
+        onMouseDown={focusContent} onContentChange={contentChanged} />
       <box flexDirection="row" gap={2}>
         <text fg={props.context.theme.text.base} height={1} wrapMode="none"
           onMouseUp={(event: MouseEvent): void => click(event, (): void => { void save() })}>
