@@ -424,7 +424,7 @@ function MemosPanel(props: {
                   onMouseUp={(event: MouseEvent): void => click(event, (): void => openMemo(group.name, memo))}>
                   {memo.title}
                 </text>
-                <text fg={memo.deleted ? props.context.theme.text.feedback.error.base : props.context.theme.text.feedback.error.muted} wrapMode="none" height={1}
+                <text fg={memo.deleted ? props.context.theme.text.feedback.error.base : props.context.theme.text.feedback.error.muted} wrapMode="none" height={1} paddingX={1}
                   onMouseUp={(event: MouseEvent): void => click(event, (): void => { void (memo.deleted ? deleteMemoPermanently(group.name, memo) : changeDeleted(group.name, memo, true)) })}>
                   {memo.deleted ? "🗑" : "×"}
                 </text>

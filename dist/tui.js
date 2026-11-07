@@ -904,6 +904,7 @@ function MemosPanel(props) {
                 _$insert(_el$42, () => memo.title);
                 _$setProp(_el$43, "wrapMode", "none");
                 _$setProp(_el$43, "height", 1);
+                _$setProp(_el$43, "paddingX", 1);
                 _$setProp(_el$43, "onMouseUp", (event) => click(event, () => {
                   memo.deleted ? deleteMemoPermanently(group.name, memo) : changeDeleted(group.name, memo, true);
                 }));
