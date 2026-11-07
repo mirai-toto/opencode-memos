@@ -71,6 +71,20 @@ function MemoDetail(props: {
       props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
     }
   }
+  const deletePermanently: () => Promise<void> = async (): Promise<void> => {
+    try {
+      const confirmed: boolean = (await props.context.ui.dialog.confirm({
+        title: "Delete this memo?",
+        message: "This permanently removes the memo and cannot be undone.",
+        label: { confirm: "Delete", cancel: "Cancel" },
+      })) ?? false
+      if (!confirmed) return
+      await props.repository.deleteMemo(props.group, props.memo.id)
+      await closeAndRefresh()
+    } catch (error: unknown) {
+      props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
+    }
+  }
   const showDetail: () => void = (): void => {
     props.context.ui.dialog.show((): JSX.Element => (
       <MemoDetail context={props.context} repository={props.repository} group={props.group} memo={props.memo} onChanged={props.onChanged} />
@@ -95,6 +109,7 @@ function MemoDetail(props: {
       { bind: "d", run: (): Promise<void> => changeDeleted(true) },
       { bind: "r", run: (): Promise<void> => changeDeleted(false) },
       { bind: "e", run: (): void => editMemo() },
+      { bind: "shift+d", run: (): Promise<void> => deletePermanently() },
       { bind: "pageup", run: (): void => { scroll?.scrollBy(-Math.max(1, Math.floor(scroll.viewport.height / 2)), "absolute") } },
       { bind: "pagedown", run: (): void => { scroll?.scrollBy(Math.max(1, Math.floor(scroll.viewport.height / 2)), "absolute") } },
       { bind: "up", run: (): void => { scroll?.scrollBy(-1, "absolute") } },
@@ -111,16 +126,22 @@ function MemoDetail(props: {
   const content: string = props.memo.content || "(empty memo)"
   const contentHeight: number = Math.max(1, content.split("\n").length)
   return (
-    <box padding={1} gap={1}>
-      <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}>
-        <b>{props.memo.checked ? "✓" : "○"} {props.memo.title}</b>
-      </text>
+    <box padding={2} gap={1}>
+      <box flexDirection="row" gap={1} height={1}>
+        <text fg={props.memo.checked ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted} wrapMode="none" height={1}>
+          <b>{props.memo.checked ? "✓" : "○"}</b>
+        </text>
+        <text fg={props.context.theme.hue.accent[400]} wrapMode="none" truncate height={1}>
+          <b>{props.memo.title}</b>
+        </text>
+      </box>
       <scrollbox ref={(value: ScrollBoxRenderable): void => { scroll = value }} focused
-        height={Math.max(3, terminalHeight() - 10)} scrollY scrollX>
+        border borderColor={props.context.theme.border.base} padding={1}
+        height={Math.max(3, terminalHeight() - 12)} scrollY scrollX>
         <text fg={props.context.theme.text.base} wrapMode="none" flexShrink={0} height={contentHeight}>{content}</text>
       </scrollbox>
       <text fg={props.context.theme.text.muted} wrapMode="none" truncate>
-        ↑↓/PgUp/PgDn scroll · e edit · x check/uncheck · {props.memo.deleted ? "r restore" : "d hide"} · Esc close
+        ↑↓/PgUp/PgDn scroll · e edit · x check/uncheck · {props.memo.deleted ? "r restore" : "d hide"} · shift+d delete · Esc close
       </text>
     </box>
   )
@@ -339,6 +360,21 @@ function MemosPanel(props: {
     }
   }
 
+  const deleteMemoPermanently: (group: string, memo: Memo) => Promise<void> = async (group: string, memo: Memo): Promise<void> => {
+    try {
+      const confirmed: boolean = (await props.context.ui.dialog.confirm({
+        title: "Delete this memo?",
+        message: "This permanently removes the memo and cannot be undone.",
+        label: { confirm: "Delete", cancel: "Cancel" },
+      })) ?? false
+      if (!confirmed) return
+      await props.repository.deleteMemo(group, memo.id)
+      await refresh()
+    } catch (error: unknown) {
+      props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
+    }
+  }
+
   const openMemo: (group: string, memo: Memo) => void = (group: string, memo: Memo): void => {
     props.context.ui.dialog.show((): JSX.Element => (
       <MemoDetail context={props.context} repository={props.repository} group={group} memo={memo}
@@ -388,10 +424,10 @@ function MemosPanel(props: {
                   onMouseUp={(event: MouseEvent): void => click(event, (): void => openMemo(group.name, memo))}>
                   {memo.title}
                 </text>
-                <Show when={!memo.deleted}>
-                  <text fg={props.context.theme.text.feedback.error.muted} wrapMode="none" height={1}
-                    onMouseUp={(event: MouseEvent): void => click(event, (): void => { void changeDeleted(group.name, memo, true) })}>×</text>
-                </Show>
+                <text fg={memo.deleted ? props.context.theme.text.feedback.error.base : props.context.theme.text.feedback.error.muted} wrapMode="none" height={1}
+                  onMouseUp={(event: MouseEvent): void => click(event, (): void => { void (memo.deleted ? deleteMemoPermanently(group.name, memo) : changeDeleted(group.name, memo, true)) })}>
+                  {memo.deleted ? "🗑" : "×"}
+                </text>
               </box>
             )}</For>
           </box>

@@ -70,6 +70,13 @@ export class MemoRepository {
     await this.update(group, memoID, (memo: Memo): Memo => ({ ...memo, deleted }))
   }
 
+  async deleteMemo(group: string, memoID: string): Promise<void> {
+    const current: MemoGroup = await this.read(group)
+    const memos: Memo[] = current.memos.filter((memo: Memo): boolean => memo.id !== memoID)
+    if (memos.length === current.memos.length) throw new Error(`Memo ${memoID} was not found in group ${group}`)
+    await this.write(group, { version: 2, memos })
+  }
+
   private async update(group: string, memoID: string, change: (memo: Memo) => Memo): Promise<void> {
     const current: MemoGroup = await this.read(group)
     let found: boolean = false

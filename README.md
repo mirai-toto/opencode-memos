@@ -27,10 +27,10 @@ into required fields.
 ```
 
 `checked` is a user-controlled boolean. `deleted` hides a memo from the normal
-list without removing its data; the sidebar can show and restore hidden memos.
-The plugin writes group files atomically and creates new data files with
-owner-only permissions. Existing `memo.md` files are left untouched unless you
-copy their content into JSON.
+list without removing its data; the sidebar can show, restore, or permanently
+delete hidden memos. The plugin writes group files atomically and creates new
+data files with owner-only permissions. Existing `memo.md` files are left
+untouched unless you copy their content into JSON.
 
 ## Install locally
 

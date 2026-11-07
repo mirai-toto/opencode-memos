@@ -38,6 +38,16 @@ test("stores arbitrary Markdown content and memo settings per group", async (): 
   })
 })
 
+test("deleteMemo permanently removes a memo", async (): Promise<void> => {
+  await withTemporaryDirectory(async (directory: string): Promise<void> => {
+    const repository: MemoRepository = new MemoRepository(directory, (): string => "memo-1")
+    await repository.add("personal", "Temp", "body")
+    await repository.deleteMemo("personal", "memo-1")
+    assert.deepEqual(await repository.read("personal"), { version: 2, memos: [] })
+    await assert.rejects(repository.deleteMemo("personal", "memo-1"), /was not found/)
+  })
+})
+
 test("does not alter a legacy memo.md when JSON data is absent", async (): Promise<void> => {
   await withTemporaryDirectory(async (directory: string): Promise<void> => {
     const personalDirectory: string = join(directory, "personal")

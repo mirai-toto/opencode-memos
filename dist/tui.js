@@ -1,8 +1,8 @@
 // @bun
 // src/tui.tsx
 import { effect as _$effect } from "@opentui/solid";
-import { use as _$use } from "@opentui/solid";
 import { createTextNode as _$createTextNode } from "@opentui/solid";
+import { use as _$use } from "@opentui/solid";
 import { insertNode as _$insertNode } from "@opentui/solid";
 import { insert as _$insert } from "@opentui/solid";
 import { memo as _$memo } from "@opentui/solid";
@@ -133,6 +133,13 @@ class MemoRepository {
   }
   async setDeleted(group, memoID, deleted) {
     await this.update(group, memoID, (memo) => ({ ...memo, deleted }));
+  }
+  async deleteMemo(group, memoID) {
+    const current = await this.read(group);
+    const memos = current.memos.filter((memo) => memo.id !== memoID);
+    if (memos.length === current.memos.length)
+      throw new Error(`Memo ${memoID} was not found in group ${group}`);
+    await this.write(group, { version: 2, memos });
   }
   async update(group, memoID, change) {
     const current = await this.read(group);
@@ -286,6 +293,28 @@ function MemoDetail(props) {
       });
     }
   };
+  const deletePermanently = async () => {
+    try {
+      const confirmed = await props.context.ui.dialog.confirm({
+        title: "Delete this memo?",
+        message: "This permanently removes the memo and cannot be undone.",
+        label: {
+          confirm: "Delete",
+          cancel: "Cancel"
+        }
+      }) ?? false;
+      if (!confirmed)
+        return;
+      await props.repository.deleteMemo(props.group, props.memo.id);
+      await closeAndRefresh();
+    } catch (error) {
+      props.context.ui.toast.show({
+        title: "Memos",
+        message: errorMessage(error),
+        variant: "error"
+      });
+    }
+  };
   const showDetail = () => {
     props.context.ui.dialog.show(() => _$createComponent(MemoDetail, {
       get context() {
@@ -331,6 +360,9 @@ function MemoDetail(props) {
       bind: "e",
       run: () => editMemo()
     }, {
+      bind: "shift+d",
+      run: () => deletePermanently()
+    }, {
       bind: "pageup",
       run: () => {
         scroll?.scrollBy(-Math.max(1, Math.floor(scroll.viewport.height / 2)), "absolute");
@@ -366,47 +398,60 @@ function MemoDetail(props) {
   const contentHeight = Math.max(1, content.split(`
 `).length);
   return (() => {
-    var _el$ = _$createElement("box"), _el$2 = _$createElement("text"), _el$3 = _$createElement("b"), _el$4 = _$createTextNode(` `), _el$5 = _$createElement("scrollbox"), _el$6 = _$createElement("text"), _el$7 = _$createElement("text"), _el$8 = _$createTextNode(`\u2191\u2193/PgUp/PgDn scroll \xB7 e edit \xB7 x check/uncheck \xB7 `), _el$9 = _$createTextNode(` \xB7 Esc close`);
+    var _el$ = _$createElement("box"), _el$2 = _$createElement("box"), _el$3 = _$createElement("text"), _el$4 = _$createElement("b"), _el$5 = _$createElement("text"), _el$6 = _$createElement("b"), _el$7 = _$createElement("scrollbox"), _el$8 = _$createElement("text"), _el$9 = _$createElement("text"), _el$0 = _$createTextNode(`\u2191\u2193/PgUp/PgDn scroll \xB7 e edit \xB7 x check/uncheck \xB7 `), _el$1 = _$createTextNode(` \xB7 shift+d delete \xB7 Esc close`);
     _$insertNode(_el$, _el$2);
-    _$insertNode(_el$, _el$5);
     _$insertNode(_el$, _el$7);
-    _$setProp(_el$, "padding", 1);
+    _$insertNode(_el$, _el$9);
+    _$setProp(_el$, "padding", 2);
     _$setProp(_el$, "gap", 1);
     _$insertNode(_el$2, _el$3);
-    _$setProp(_el$2, "wrapMode", "none");
-    _$setProp(_el$2, "truncate", true);
+    _$insertNode(_el$2, _el$5);
+    _$setProp(_el$2, "flexDirection", "row");
+    _$setProp(_el$2, "gap", 1);
     _$setProp(_el$2, "height", 1);
     _$insertNode(_el$3, _el$4);
-    _$insert(_el$3, () => props.memo.checked ? "\u2713" : "\u25CB", _el$4);
-    _$insert(_el$3, () => props.memo.title, null);
+    _$setProp(_el$3, "wrapMode", "none");
+    _$setProp(_el$3, "height", 1);
+    _$insert(_el$4, () => props.memo.checked ? "\u2713" : "\u25CB");
     _$insertNode(_el$5, _el$6);
+    _$setProp(_el$5, "wrapMode", "none");
+    _$setProp(_el$5, "truncate", true);
+    _$setProp(_el$5, "height", 1);
+    _$insert(_el$6, () => props.memo.title);
+    _$insertNode(_el$7, _el$8);
     _$use((value) => {
       scroll = value;
-    }, _el$5);
-    _$setProp(_el$5, "focused", true);
-    _$setProp(_el$5, "scrollY", true);
-    _$setProp(_el$5, "scrollX", true);
-    _$setProp(_el$6, "wrapMode", "none");
-    _$setProp(_el$6, "flexShrink", 0);
-    _$setProp(_el$6, "height", contentHeight);
-    _$insert(_el$6, content);
-    _$insertNode(_el$7, _el$8);
-    _$insertNode(_el$7, _el$9);
-    _$setProp(_el$7, "wrapMode", "none");
-    _$setProp(_el$7, "truncate", true);
-    _$insert(_el$7, () => props.memo.deleted ? "r restore" : "d hide", _el$9);
+    }, _el$7);
+    _$setProp(_el$7, "focused", true);
+    _$setProp(_el$7, "border", true);
+    _$setProp(_el$7, "padding", 1);
+    _$setProp(_el$7, "scrollY", true);
+    _$setProp(_el$7, "scrollX", true);
+    _$setProp(_el$8, "wrapMode", "none");
+    _$setProp(_el$8, "flexShrink", 0);
+    _$setProp(_el$8, "height", contentHeight);
+    _$insert(_el$8, content);
+    _$insertNode(_el$9, _el$0);
+    _$insertNode(_el$9, _el$1);
+    _$setProp(_el$9, "wrapMode", "none");
+    _$setProp(_el$9, "truncate", true);
+    _$insert(_el$9, () => props.memo.deleted ? "r restore" : "d hide", _el$1);
     _$effect((_p$) => {
-      var _v$ = props.context.theme.text.base, _v$2 = Math.max(3, terminalHeight() - 10), _v$3 = props.context.theme.text.base, _v$4 = props.context.theme.text.muted;
-      _v$ !== _p$.e && (_p$.e = _$setProp(_el$2, "fg", _v$, _p$.e));
-      _v$2 !== _p$.t && (_p$.t = _$setProp(_el$5, "height", _v$2, _p$.t));
-      _v$3 !== _p$.a && (_p$.a = _$setProp(_el$6, "fg", _v$3, _p$.a));
-      _v$4 !== _p$.o && (_p$.o = _$setProp(_el$7, "fg", _v$4, _p$.o));
+      var _v$ = props.memo.checked ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted, _v$2 = props.context.theme.hue.accent[400], _v$3 = props.context.theme.border.base, _v$4 = Math.max(3, terminalHeight() - 12), _v$5 = props.context.theme.text.base, _v$6 = props.context.theme.text.muted;
+      _v$ !== _p$.e && (_p$.e = _$setProp(_el$3, "fg", _v$, _p$.e));
+      _v$2 !== _p$.t && (_p$.t = _$setProp(_el$5, "fg", _v$2, _p$.t));
+      _v$3 !== _p$.a && (_p$.a = _$setProp(_el$7, "borderColor", _v$3, _p$.a));
+      _v$4 !== _p$.o && (_p$.o = _$setProp(_el$7, "height", _v$4, _p$.o));
+      _v$5 !== _p$.i && (_p$.i = _$setProp(_el$8, "fg", _v$5, _p$.i));
+      _v$6 !== _p$.n && (_p$.n = _$setProp(_el$9, "fg", _v$6, _p$.n));
       return _p$;
     }, {
       e: undefined,
       t: undefined,
       a: undefined,
-      o: undefined
+      o: undefined,
+      i: undefined,
+      n: undefined
     });
     return _el$;
   })();
@@ -454,23 +499,23 @@ function MemoContentEditor(props) {
     props.context.renderer.off("resize", onResize);
   });
   return (() => {
-    var _el$0 = _$createElement("box"), _el$1 = _$createElement("text"), _el$10 = _$createElement("b"), _el$12 = _$createElement("textarea"), _el$13 = _$createElement("box"), _el$14 = _$createElement("text"), _el$15 = _$createElement("text"), _el$17 = _$createElement("text");
-    _$insertNode(_el$0, _el$1);
-    _$insertNode(_el$0, _el$12);
-    _$insertNode(_el$0, _el$13);
-    _$setProp(_el$0, "padding", 1);
-    _$setProp(_el$0, "gap", 1);
-    _$insertNode(_el$1, _el$10);
-    _$setProp(_el$1, "wrapMode", "none");
-    _$setProp(_el$1, "truncate", true);
-    _$setProp(_el$1, "height", 1);
-    _$insertNode(_el$10, _$createTextNode(`Content`));
+    var _el$10 = _$createElement("box"), _el$11 = _$createElement("text"), _el$12 = _$createElement("b"), _el$14 = _$createElement("textarea"), _el$15 = _$createElement("box"), _el$16 = _$createElement("text"), _el$17 = _$createElement("text"), _el$19 = _$createElement("text");
+    _$insertNode(_el$10, _el$11);
+    _$insertNode(_el$10, _el$14);
+    _$insertNode(_el$10, _el$15);
+    _$setProp(_el$10, "padding", 1);
+    _$setProp(_el$10, "gap", 1);
+    _$insertNode(_el$11, _el$12);
+    _$setProp(_el$11, "wrapMode", "none");
+    _$setProp(_el$11, "truncate", true);
+    _$setProp(_el$11, "height", 1);
+    _$insertNode(_el$12, _$createTextNode(`Content`));
     _$use((value) => {
       editor = value;
-    }, _el$12);
-    _$setProp(_el$12, "placeholder", "Write memo content\u2026");
-    _$setProp(_el$12, "wrapMode", "word");
-    _$setProp(_el$12, "keyBindings", [{
+    }, _el$14);
+    _$setProp(_el$14, "placeholder", "Write memo content\u2026");
+    _$setProp(_el$14, "wrapMode", "word");
+    _$setProp(_el$14, "keyBindings", [{
       name: "return",
       action: "submit"
     }, {
@@ -492,38 +537,38 @@ function MemoContentEditor(props) {
       ctrl: true,
       action: "newline"
     }]);
-    _$setProp(_el$12, "onSubmit", () => {
+    _$setProp(_el$14, "onSubmit", () => {
       save();
     });
-    _$setProp(_el$12, "onMouseDown", focusContent);
-    _$setProp(_el$12, "onContentChange", contentChanged);
-    _$insertNode(_el$13, _el$14);
-    _$insertNode(_el$13, _el$15);
-    _$insertNode(_el$13, _el$17);
-    _$setProp(_el$13, "flexDirection", "row");
-    _$setProp(_el$13, "gap", 2);
-    _$setProp(_el$14, "height", 1);
-    _$setProp(_el$14, "wrapMode", "none");
-    _$setProp(_el$14, "onMouseUp", (event) => click(event, () => {
+    _$setProp(_el$14, "onMouseDown", focusContent);
+    _$setProp(_el$14, "onContentChange", contentChanged);
+    _$insertNode(_el$15, _el$16);
+    _$insertNode(_el$15, _el$17);
+    _$insertNode(_el$15, _el$19);
+    _$setProp(_el$15, "flexDirection", "row");
+    _$setProp(_el$15, "gap", 2);
+    _$setProp(_el$16, "height", 1);
+    _$setProp(_el$16, "wrapMode", "none");
+    _$setProp(_el$16, "onMouseUp", (event) => click(event, () => {
       save();
     }));
-    _$insert(_el$14, () => saving() ? "Saving\u2026" : "Save");
-    _$insertNode(_el$15, _$createTextNode(`Cancel`));
-    _$setProp(_el$15, "height", 1);
-    _$setProp(_el$15, "wrapMode", "none");
-    _$setProp(_el$15, "onMouseUp", (event) => click(event, props.onCancel));
-    _$insertNode(_el$17, _$createTextNode(`Enter save \xB7 Ctrl+Enter newline \xB7 Esc cancel`));
+    _$insert(_el$16, () => saving() ? "Saving\u2026" : "Save");
+    _$insertNode(_el$17, _$createTextNode(`Cancel`));
     _$setProp(_el$17, "height", 1);
     _$setProp(_el$17, "wrapMode", "none");
-    _$setProp(_el$17, "truncate", true);
+    _$setProp(_el$17, "onMouseUp", (event) => click(event, props.onCancel));
+    _$insertNode(_el$19, _$createTextNode(`Enter save \xB7 Ctrl+Enter newline \xB7 Esc cancel`));
+    _$setProp(_el$19, "height", 1);
+    _$setProp(_el$19, "wrapMode", "none");
+    _$setProp(_el$19, "truncate", true);
     _$effect((_p$) => {
-      var _v$5 = props.context.theme.text.base, _v$6 = props.initialContent, _v$7 = Math.max(5, terminalHeight() - 8), _v$8 = props.context.theme.text.action.primary.base, _v$9 = props.context.theme.text.muted, _v$0 = props.context.theme.text.muted;
-      _v$5 !== _p$.e && (_p$.e = _$setProp(_el$1, "fg", _v$5, _p$.e));
-      _v$6 !== _p$.t && (_p$.t = _$setProp(_el$12, "initialValue", _v$6, _p$.t));
-      _v$7 !== _p$.a && (_p$.a = _$setProp(_el$12, "height", _v$7, _p$.a));
-      _v$8 !== _p$.o && (_p$.o = _$setProp(_el$14, "fg", _v$8, _p$.o));
-      _v$9 !== _p$.i && (_p$.i = _$setProp(_el$15, "fg", _v$9, _p$.i));
-      _v$0 !== _p$.n && (_p$.n = _$setProp(_el$17, "fg", _v$0, _p$.n));
+      var _v$7 = props.context.theme.text.base, _v$8 = props.initialContent, _v$9 = Math.max(5, terminalHeight() - 8), _v$0 = props.context.theme.text.action.primary.base, _v$1 = props.context.theme.text.muted, _v$10 = props.context.theme.text.muted;
+      _v$7 !== _p$.e && (_p$.e = _$setProp(_el$11, "fg", _v$7, _p$.e));
+      _v$8 !== _p$.t && (_p$.t = _$setProp(_el$14, "initialValue", _v$8, _p$.t));
+      _v$9 !== _p$.a && (_p$.a = _$setProp(_el$14, "height", _v$9, _p$.a));
+      _v$0 !== _p$.o && (_p$.o = _$setProp(_el$16, "fg", _v$0, _p$.o));
+      _v$1 !== _p$.i && (_p$.i = _$setProp(_el$17, "fg", _v$1, _p$.i));
+      _v$10 !== _p$.n && (_p$.n = _$setProp(_el$19, "fg", _v$10, _p$.n));
       return _p$;
     }, {
       e: undefined,
@@ -533,7 +578,7 @@ function MemoContentEditor(props) {
       i: undefined,
       n: undefined
     });
-    return _el$0;
+    return _el$10;
   })();
 }
 function openMemoEditor(context, options) {
@@ -713,6 +758,28 @@ function MemosPanel(props) {
       });
     }
   };
+  const deleteMemoPermanently = async (group, memo) => {
+    try {
+      const confirmed = await props.context.ui.dialog.confirm({
+        title: "Delete this memo?",
+        message: "This permanently removes the memo and cannot be undone.",
+        label: {
+          confirm: "Delete",
+          cancel: "Cancel"
+        }
+      }) ?? false;
+      if (!confirmed)
+        return;
+      await props.repository.deleteMemo(group, memo.id);
+      await refresh();
+    } catch (error) {
+      props.context.ui.toast.show({
+        title: "Memos",
+        message: errorMessage(error),
+        variant: "error"
+      });
+    }
+  };
   const openMemo = (group, memo) => {
     props.context.ui.dialog.show(() => _$createComponent(MemoDetail, {
       get context() {
@@ -728,18 +795,18 @@ function MemosPanel(props) {
   };
   const visibleMemos = (group) => group.memos.filter((memo) => props.preferences.showDeleted || !memo.deleted);
   return (() => {
-    var _el$19 = _$createElement("box"), _el$20 = _$createElement("text"), _el$21 = _$createElement("b"), _el$22 = _$createTextNode(` Memos`);
-    _$insertNode(_el$19, _el$20);
-    _$insertNode(_el$20, _el$21);
-    _$setProp(_el$20, "wrapMode", "none");
-    _$setProp(_el$20, "truncate", true);
-    _$setProp(_el$20, "height", 1);
-    _$setProp(_el$20, "onMouseDown", (event) => click(event, () => props.updatePreferences((draft) => {
+    var _el$21 = _$createElement("box"), _el$22 = _$createElement("text"), _el$23 = _$createElement("b"), _el$24 = _$createTextNode(` Memos`);
+    _$insertNode(_el$21, _el$22);
+    _$insertNode(_el$22, _el$23);
+    _$setProp(_el$22, "wrapMode", "none");
+    _$setProp(_el$22, "truncate", true);
+    _$setProp(_el$22, "height", 1);
+    _$setProp(_el$22, "onMouseDown", (event) => click(event, () => props.updatePreferences((draft) => {
       draft.collapsed = !draft.collapsed;
     })));
-    _$insertNode(_el$21, _el$22);
-    _$insert(_el$21, () => props.preferences.collapsed ? "\u25B6" : "\u25BC", _el$22);
-    _$insert(_el$19, _$createComponent(Show, {
+    _$insertNode(_el$23, _el$24);
+    _$insert(_el$23, () => props.preferences.collapsed ? "\u25B6" : "\u25BC", _el$24);
+    _$insert(_el$21, _$createComponent(Show, {
       get when() {
         return !props.preferences.collapsed;
       },
@@ -749,163 +816,156 @@ function MemosPanel(props) {
             return state().loading;
           },
           get children() {
-            var _el$23 = _$createElement("text");
-            _$insertNode(_el$23, _$createTextNode(`Loading memos\u2026`));
-            _$effect((_$p) => _$setProp(_el$23, "fg", props.context.theme.text.muted, _$p));
-            return _el$23;
+            var _el$25 = _$createElement("text");
+            _$insertNode(_el$25, _$createTextNode(`Loading memos\u2026`));
+            _$effect((_$p) => _$setProp(_el$25, "fg", props.context.theme.text.muted, _$p));
+            return _el$25;
           }
         }), _$createComponent(Show, {
           get when() {
             return state().error;
           },
           get children() {
-            var _el$25 = _$createElement("text");
-            _$setProp(_el$25, "maxHeight", 2);
-            _$insert(_el$25, () => state().error);
-            _$effect((_$p) => _$setProp(_el$25, "fg", props.context.theme.text.feedback.error.base, _$p));
-            return _el$25;
+            var _el$27 = _$createElement("text");
+            _$setProp(_el$27, "maxHeight", 2);
+            _$insert(_el$27, () => state().error);
+            _$effect((_$p) => _$setProp(_el$27, "fg", props.context.theme.text.feedback.error.base, _$p));
+            return _el$27;
           }
         }), _$createComponent(For, {
           get each() {
             return state().groups;
           },
           children: (group) => (() => {
-            var _el$30 = _$createElement("box"), _el$31 = _$createElement("box"), _el$32 = _$createElement("text"), _el$33 = _$createElement("b"), _el$34 = _$createElement("text");
-            _$insertNode(_el$30, _el$31);
-            _$insertNode(_el$31, _el$32);
-            _$insertNode(_el$31, _el$34);
-            _$setProp(_el$31, "flexDirection", "row");
-            _$setProp(_el$31, "gap", 2);
+            var _el$32 = _$createElement("box"), _el$33 = _$createElement("box"), _el$34 = _$createElement("text"), _el$35 = _$createElement("b"), _el$36 = _$createElement("text");
             _$insertNode(_el$32, _el$33);
-            _$setProp(_el$32, "wrapMode", "none");
-            _$setProp(_el$32, "truncate", true);
-            _$setProp(_el$32, "height", 1);
-            _$insert(_el$33, () => group.name);
-            _$insertNode(_el$34, _$createTextNode(`+ New`));
-            _$setProp(_el$34, "height", 1);
+            _$insertNode(_el$33, _el$34);
+            _$insertNode(_el$33, _el$36);
+            _$setProp(_el$33, "flexDirection", "row");
+            _$setProp(_el$33, "gap", 2);
+            _$insertNode(_el$34, _el$35);
             _$setProp(_el$34, "wrapMode", "none");
-            _$setProp(_el$34, "onMouseUp", (event) => click(event, () => {
+            _$setProp(_el$34, "truncate", true);
+            _$setProp(_el$34, "height", 1);
+            _$insert(_el$35, () => group.name);
+            _$insertNode(_el$36, _$createTextNode(`+ New`));
+            _$setProp(_el$36, "height", 1);
+            _$setProp(_el$36, "wrapMode", "none");
+            _$setProp(_el$36, "onMouseUp", (event) => click(event, () => {
               addMemo(group.name);
             }));
-            _$insert(_el$30, _$createComponent(Show, {
+            _$insert(_el$32, _$createComponent(Show, {
               get when() {
                 return group.error;
               },
               get children() {
-                var _el$36 = _$createElement("text");
-                _$setProp(_el$36, "maxHeight", 2);
-                _$insert(_el$36, () => group.error);
-                _$effect((_$p) => _$setProp(_el$36, "fg", props.context.theme.text.feedback.error.base, _$p));
-                return _el$36;
+                var _el$38 = _$createElement("text");
+                _$setProp(_el$38, "maxHeight", 2);
+                _$insert(_el$38, () => group.error);
+                _$effect((_$p) => _$setProp(_el$38, "fg", props.context.theme.text.feedback.error.base, _$p));
+                return _el$38;
               }
             }), null);
-            _$insert(_el$30, _$createComponent(Show, {
+            _$insert(_el$32, _$createComponent(Show, {
               get when() {
                 return _$memo(() => !!!group.error)() && visibleMemos(group).length === 0;
               },
               get children() {
-                var _el$37 = _$createElement("text");
-                _$insert(_el$37, () => props.preferences.showDeleted ? "No memos." : "No active memos.");
-                _$effect((_$p) => _$setProp(_el$37, "fg", props.context.theme.text.muted, _$p));
-                return _el$37;
+                var _el$39 = _$createElement("text");
+                _$insert(_el$39, () => props.preferences.showDeleted ? "No memos." : "No active memos.");
+                _$effect((_$p) => _$setProp(_el$39, "fg", props.context.theme.text.muted, _$p));
+                return _el$39;
               }
             }), null);
-            _$insert(_el$30, _$createComponent(For, {
+            _$insert(_el$32, _$createComponent(For, {
               get each() {
                 return visibleMemos(group);
               },
               children: (memo) => (() => {
-                var _el$38 = _$createElement("box"), _el$39 = _$createElement("text"), _el$40 = _$createElement("text");
-                _$insertNode(_el$38, _el$39);
-                _$insertNode(_el$38, _el$40);
-                _$setProp(_el$38, "flexDirection", "row");
-                _$setProp(_el$38, "gap", 1);
-                _$setProp(_el$39, "wrapMode", "none");
-                _$setProp(_el$39, "height", 1);
-                _$setProp(_el$39, "onMouseUp", (event) => click(event, () => {
+                var _el$40 = _$createElement("box"), _el$41 = _$createElement("text"), _el$42 = _$createElement("text"), _el$43 = _$createElement("text");
+                _$insertNode(_el$40, _el$41);
+                _$insertNode(_el$40, _el$42);
+                _$insertNode(_el$40, _el$43);
+                _$setProp(_el$40, "flexDirection", "row");
+                _$setProp(_el$40, "gap", 1);
+                _$setProp(_el$41, "wrapMode", "none");
+                _$setProp(_el$41, "height", 1);
+                _$setProp(_el$41, "onMouseUp", (event) => click(event, () => {
                   memo.deleted ? changeDeleted(group.name, memo, false) : toggleChecked(group.name, memo);
                 }));
-                _$insert(_el$39, (() => {
+                _$insert(_el$41, (() => {
                   var _c$ = _$memo(() => !!memo.deleted);
                   return () => _c$() ? "\u21B6" : memo.checked ? "\u2713" : "\u25CB";
                 })());
-                _$setProp(_el$40, "wrapMode", "none");
-                _$setProp(_el$40, "truncate", true);
-                _$setProp(_el$40, "height", 1);
-                _$setProp(_el$40, "onMouseUp", (event) => click(event, () => openMemo(group.name, memo)));
-                _$insert(_el$40, () => memo.title);
-                _$insert(_el$38, _$createComponent(Show, {
-                  get when() {
-                    return !memo.deleted;
-                  },
-                  get children() {
-                    var _el$41 = _$createElement("text");
-                    _$insertNode(_el$41, _$createTextNode(`\xD7`));
-                    _$setProp(_el$41, "wrapMode", "none");
-                    _$setProp(_el$41, "height", 1);
-                    _$setProp(_el$41, "onMouseUp", (event) => click(event, () => {
-                      changeDeleted(group.name, memo, true);
-                    }));
-                    _$effect((_$p) => _$setProp(_el$41, "fg", props.context.theme.text.feedback.error.muted, _$p));
-                    return _el$41;
-                  }
-                }), null);
+                _$setProp(_el$42, "wrapMode", "none");
+                _$setProp(_el$42, "truncate", true);
+                _$setProp(_el$42, "height", 1);
+                _$setProp(_el$42, "onMouseUp", (event) => click(event, () => openMemo(group.name, memo)));
+                _$insert(_el$42, () => memo.title);
+                _$setProp(_el$43, "wrapMode", "none");
+                _$setProp(_el$43, "height", 1);
+                _$setProp(_el$43, "onMouseUp", (event) => click(event, () => {
+                  memo.deleted ? deleteMemoPermanently(group.name, memo) : changeDeleted(group.name, memo, true);
+                }));
+                _$insert(_el$43, () => memo.deleted ? "\uD83D\uDDD1" : "\xD7");
                 _$effect((_p$) => {
-                  var _v$13 = memo.deleted ? props.context.theme.text.feedback.warning.base : memo.checked ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted, _v$14 = memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base;
-                  _v$13 !== _p$.e && (_p$.e = _$setProp(_el$39, "fg", _v$13, _p$.e));
-                  _v$14 !== _p$.t && (_p$.t = _$setProp(_el$40, "fg", _v$14, _p$.t));
+                  var _v$15 = memo.deleted ? props.context.theme.text.feedback.warning.base : memo.checked ? props.context.theme.text.feedback.success.base : props.context.theme.text.muted, _v$16 = memo.deleted ? props.context.theme.text.muted : props.context.theme.text.base, _v$17 = memo.deleted ? props.context.theme.text.feedback.error.base : props.context.theme.text.feedback.error.muted;
+                  _v$15 !== _p$.e && (_p$.e = _$setProp(_el$41, "fg", _v$15, _p$.e));
+                  _v$16 !== _p$.t && (_p$.t = _$setProp(_el$42, "fg", _v$16, _p$.t));
+                  _v$17 !== _p$.a && (_p$.a = _$setProp(_el$43, "fg", _v$17, _p$.a));
                   return _p$;
                 }, {
                   e: undefined,
-                  t: undefined
+                  t: undefined,
+                  a: undefined
                 });
-                return _el$38;
+                return _el$40;
               })()
             }), null);
             _$effect((_p$) => {
-              var _v$11 = props.context.theme.hue.accent[400], _v$12 = props.context.theme.hue.accent[400];
-              _v$11 !== _p$.e && (_p$.e = _$setProp(_el$32, "fg", _v$11, _p$.e));
-              _v$12 !== _p$.t && (_p$.t = _$setProp(_el$34, "fg", _v$12, _p$.t));
+              var _v$13 = props.context.theme.hue.accent[400], _v$14 = props.context.theme.hue.accent[400];
+              _v$13 !== _p$.e && (_p$.e = _$setProp(_el$34, "fg", _v$13, _p$.e));
+              _v$14 !== _p$.t && (_p$.t = _$setProp(_el$36, "fg", _v$14, _p$.t));
               return _p$;
             }, {
               e: undefined,
               t: undefined
             });
-            return _el$30;
+            return _el$32;
           })()
         }), (() => {
-          var _el$26 = _$createElement("box"), _el$27 = _$createElement("text"), _el$28 = _$createElement("text");
-          _$insertNode(_el$26, _el$27);
-          _$insertNode(_el$26, _el$28);
-          _$setProp(_el$26, "flexDirection", "row");
-          _$setProp(_el$26, "gap", 2);
-          _$setProp(_el$27, "height", 1);
-          _$setProp(_el$27, "wrapMode", "none");
-          _$setProp(_el$27, "onMouseUp", (event) => click(event, () => props.updatePreferences((draft) => {
+          var _el$28 = _$createElement("box"), _el$29 = _$createElement("text"), _el$30 = _$createElement("text");
+          _$insertNode(_el$28, _el$29);
+          _$insertNode(_el$28, _el$30);
+          _$setProp(_el$28, "flexDirection", "row");
+          _$setProp(_el$28, "gap", 2);
+          _$setProp(_el$29, "height", 1);
+          _$setProp(_el$29, "wrapMode", "none");
+          _$setProp(_el$29, "onMouseUp", (event) => click(event, () => props.updatePreferences((draft) => {
             draft.showDeleted = !draft.showDeleted;
           })));
-          _$insert(_el$27, () => props.preferences.showDeleted ? "Hide deleted" : "Show deleted");
-          _$insertNode(_el$28, _$createTextNode(`\u21BB Refresh`));
-          _$setProp(_el$28, "height", 1);
-          _$setProp(_el$28, "wrapMode", "none");
-          _$setProp(_el$28, "onMouseUp", (event) => click(event, () => {
+          _$insert(_el$29, () => props.preferences.showDeleted ? "Hide deleted" : "Show deleted");
+          _$insertNode(_el$30, _$createTextNode(`\u21BB Refresh`));
+          _$setProp(_el$30, "height", 1);
+          _$setProp(_el$30, "wrapMode", "none");
+          _$setProp(_el$30, "onMouseUp", (event) => click(event, () => {
             refresh();
           }));
           _$effect((_p$) => {
-            var _v$1 = props.context.theme.text.muted, _v$10 = props.context.theme.text.muted;
-            _v$1 !== _p$.e && (_p$.e = _$setProp(_el$27, "fg", _v$1, _p$.e));
-            _v$10 !== _p$.t && (_p$.t = _$setProp(_el$28, "fg", _v$10, _p$.t));
+            var _v$11 = props.context.theme.text.muted, _v$12 = props.context.theme.text.muted;
+            _v$11 !== _p$.e && (_p$.e = _$setProp(_el$29, "fg", _v$11, _p$.e));
+            _v$12 !== _p$.t && (_p$.t = _$setProp(_el$30, "fg", _v$12, _p$.t));
             return _p$;
           }, {
             e: undefined,
             t: undefined
           });
-          return _el$26;
+          return _el$28;
         })()];
       }
     }), null);
-    _$effect((_$p) => _$setProp(_el$20, "fg", props.context.theme.text.base, _$p));
-    return _el$19;
+    _$effect((_$p) => _$setProp(_el$22, "fg", props.context.theme.text.base, _$p));
+    return _el$21;
   })();
 }
 var tui_default = Plugin.define({
