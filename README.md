@@ -64,6 +64,7 @@ content falls back to an in-app textarea, where **Enter** saves and
 **Ctrl+Enter** inserts a line break. **Esc** or **Cancel** discards unsaved
 changes.
 
-Use **⋯** beside a group to delete it. Only groups with no memos (including
-hidden memos) and no other files can be deleted. The plugin never recursively
-removes a group directory or touches legacy files.
+Use **⋯** beside a group to rename or delete it. Renaming refuses a name that
+already exists. Deleting a group permanently removes all its memos, including
+hidden ones, after confirmation. Groups containing other files cannot be
+deleted; the plugin never recursively removes directories or touches legacy files.

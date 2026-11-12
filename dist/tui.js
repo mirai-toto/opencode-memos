@@ -14,7 +14,7 @@ import { createEffect, createSignal, For, onCleanup, onMount, Show } from "solid
 
 // src/store.ts
 import { randomUUID } from "crypto";
-import { mkdir, readdir, readFile, rename, rm, rmdir, unlink, writeFile } from "fs/promises";
+import { lstat, mkdir, readdir, readFile, rename, rm, rmdir, unlink, writeFile } from "fs/promises";
 import { homedir } from "os";
 import { join, resolve } from "path";
 
@@ -108,11 +108,23 @@ class MemoRepository {
     await mkdir(directory, { mode: 448 });
     await this.write(group, emptyMemoGroup());
   }
+  async renameGroup(group, newName) {
+    const source = this.groupPath(group);
+    const destination = this.groupPath(newName);
+    if (source === destination)
+      return;
+    try {
+      await lstat(destination);
+      throw new Error(`Group ${newName} already exists`);
+    } catch (error) {
+      if (errorCode(error) !== "ENOENT")
+        throw error;
+    }
+    await rename(source, destination);
+  }
   async deleteGroup(group) {
     const directory = this.groupPath(group);
-    const data = await this.read(group);
-    if (data.memos.length > 0)
-      throw new Error(`Group ${group} still contains memos (including hidden ones)`);
+    await this.read(group);
     const entries = await readdir(directory);
     if (entries.some((entry) => entry !== "memos.json")) {
       throw new Error(`Group ${group} contains other files and cannot be deleted`);
@@ -743,6 +755,16 @@ function MemosPanel(props) {
       }
     });
   };
+  const validGroupName = (name) => {
+    if (isValidGroupName(name))
+      return true;
+    props.context.ui.toast.show({
+      title: "Memos",
+      message: "Use letters, numbers, _ or -; start with a letter or number",
+      variant: "error"
+    });
+    return false;
+  };
   const createGroup = async () => {
     let current = "";
     for (;; ) {
@@ -754,12 +776,7 @@ function MemosPanel(props) {
       if (raw === undefined)
         return;
       const name = raw.trim();
-      if (!isValidGroupName(name)) {
-        props.context.ui.toast.show({
-          title: "Memos",
-          message: "Use letters, numbers, _ or -; start with a letter or number",
-          variant: "error"
-        });
+      if (!validGroupName(name)) {
         current = name;
         continue;
       }
@@ -781,25 +798,56 @@ function MemosPanel(props) {
     const action = await props.context.ui.dialog.select({
       title: `${group} group`,
       options: [{
-        title: "Delete group",
-        value: "delete",
-        description: "Only if it has no memos or other files"
+        title: "Rename",
+        value: "rename"
+      }, {
+        title: "Delete",
+        value: "delete"
       }]
     });
+    if (action === "rename") {
+      let current = group;
+      for (;; ) {
+        const raw = await props.context.ui.dialog.prompt({
+          title: `Rename ${group} group`,
+          value: current
+        });
+        if (raw === undefined)
+          return;
+        const newName = raw.trim();
+        if (!validGroupName(newName)) {
+          current = newName;
+          continue;
+        }
+        try {
+          if (newName !== group && (await props.repository.listGroups()).includes(newName)) {
+            props.context.ui.toast.show({
+              title: "Memos",
+              message: `Group ${newName} already exists`,
+              variant: "error"
+            });
+            current = newName;
+            continue;
+          }
+          await props.repository.renameGroup(group, newName);
+          await refresh();
+        } catch (error) {
+          props.context.ui.toast.show({
+            title: "Memos",
+            message: errorMessage(error),
+            variant: "error"
+          });
+        }
+        return;
+      }
+    }
     if (action !== "delete")
       return;
     try {
       const data = await props.repository.read(group);
-      if (data.memos.length > 0) {
-        await props.context.ui.dialog.alert({
-          title: "Group is not empty",
-          message: "Delete all memos, including hidden ones, first."
-        });
-        return;
-      }
       const confirmed = await props.context.ui.dialog.confirm({
         title: `Delete ${group} group?`,
-        message: "Only an empty group can be deleted. Other files in its directory will not be removed.",
+        message: `This permanently deletes ${data.memos.length} memo${data.memos.length === 1 ? "" : "s"} (including hidden ones) and the group. This cannot be undone. Other files will not be removed.`,
         label: {
           confirm: "Delete",
           cancel: "Cancel"

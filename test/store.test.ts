@@ -64,7 +64,25 @@ test("starts with no groups and creates distinct empty groups", async (): Promis
   })
 })
 
-test("deletes only empty groups without touching other files", async (): Promise<void> => {
+test("renames groups without overwriting an existing name or losing memos", async (): Promise<void> => {
+  await withTemporaryDirectory(async (directory: string): Promise<void> => {
+    const repository: MemoRepository = new MemoRepository(directory, (): string => "memo-1")
+    const memo: Memo = await repository.add("drafts", "Example", "Keep this")
+    await repository.createGroup("personal")
+
+    await assert.rejects(repository.renameGroup("drafts", "personal"), /already exists/)
+    await assert.rejects(repository.renameGroup("drafts", "../unsafe"), /Invalid memo group name/)
+    assert.deepEqual(await repository.read("drafts"), { version: 2, memos: [memo] })
+    assert.deepEqual(await repository.read("personal"), { version: 2, memos: [] })
+
+    await repository.renameGroup("drafts", "notes")
+    assert.deepEqual(await repository.listGroups(), ["notes", "personal"])
+    assert.deepEqual(await repository.read("notes"), { version: 2, memos: [memo] })
+    await assert.rejects(repository.renameGroup("drafts", "other"), { code: "ENOENT" })
+  })
+})
+
+test("deletes groups and all their memos without touching other files", async (): Promise<void> => {
   await withTemporaryDirectory(async (directory: string): Promise<void> => {
     const repository: MemoRepository = new MemoRepository(directory, (): string => "memo-1")
     await repository.createGroup("empty")
@@ -75,7 +93,6 @@ test("deletes only empty groups without touching other files", async (): Promise
     const legacyPath: string = join(directory, "legacy", "memo.md")
     await writeFile(legacyPath, "Keep me", "utf8")
 
-    await assert.rejects(repository.deleteGroup("hidden"), /still contains memos/)
     await assert.rejects(repository.deleteGroup("legacy"), /contains other files/)
     assert.equal(await readFile(legacyPath, "utf8"), "Keep me")
     assert.deepEqual(await repository.read("hidden"), {
@@ -83,8 +100,10 @@ test("deletes only empty groups without touching other files", async (): Promise
       memos: [{ id: "memo-1", title: "Hidden", checked: false, deleted: true, content: "body" }],
     })
 
+    await repository.deleteGroup("hidden")
     await repository.deleteGroup("empty")
-    assert.deepEqual(await repository.listGroups(), ["hidden", "legacy"])
+    assert.deepEqual(await repository.listGroups(), ["legacy"])
+    assert.deepEqual(await repository.read("hidden"), { version: 2, memos: [] })
     await assert.rejects(repository.deleteGroup("empty"), { code: "ENOENT" })
   })
 })

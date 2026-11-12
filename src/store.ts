@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { Dirent } from "node:fs"
-import { mkdir, readdir, readFile, rename, rm, rmdir, unlink, writeFile } from "node:fs/promises"
+import { lstat, mkdir, readdir, readFile, rename, rm, rmdir, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { emptyMemoGroup, parseMemoGroup, serializeMemoGroup, type Memo, type MemoGroup } from "./model.ts"
@@ -39,10 +39,22 @@ export class MemoRepository {
     await this.write(group, emptyMemoGroup())
   }
 
+  async renameGroup(group: string, newName: string): Promise<void> {
+    const source: string = this.groupPath(group)
+    const destination: string = this.groupPath(newName)
+    if (source === destination) return
+    try {
+      await lstat(destination)
+      throw new Error(`Group ${newName} already exists`)
+    } catch (error: unknown) {
+      if (errorCode(error) !== "ENOENT") throw error
+    }
+    await rename(source, destination)
+  }
+
   async deleteGroup(group: string): Promise<void> {
     const directory: string = this.groupPath(group)
-    const data: MemoGroup = await this.read(group)
-    if (data.memos.length > 0) throw new Error(`Group ${group} still contains memos (including hidden ones)`)
+    await this.read(group)
     const entries: string[] = await readdir(directory)
     if (entries.some((entry: string): boolean => entry !== "memos.json")) {
       throw new Error(`Group ${group} contains other files and cannot be deleted`)
