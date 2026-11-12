@@ -48,6 +48,47 @@ test("deleteMemo permanently removes a memo", async (): Promise<void> => {
   })
 })
 
+test("starts with no groups and creates distinct empty groups", async (): Promise<void> => {
+  await withTemporaryDirectory(async (directory: string): Promise<void> => {
+    const root: string = join(directory, "memos")
+    const repository: MemoRepository = new MemoRepository(root)
+    assert.deepEqual(await repository.listGroups(), [])
+
+    await repository.createGroup("personal")
+    await repository.createGroup("work")
+    await repository.createGroup("ideas_2026")
+    assert.deepEqual(await repository.listGroups(), ["ideas_2026", "personal", "work"])
+    assert.deepEqual(await repository.read("ideas_2026"), { version: 2, memos: [] })
+    await assert.rejects(repository.createGroup("personal"), { code: "EEXIST" })
+    await assert.rejects(repository.createGroup("../outside"), /Invalid memo group name/)
+  })
+})
+
+test("deletes only empty groups without touching other files", async (): Promise<void> => {
+  await withTemporaryDirectory(async (directory: string): Promise<void> => {
+    const repository: MemoRepository = new MemoRepository(directory, (): string => "memo-1")
+    await repository.createGroup("empty")
+    await repository.createGroup("hidden")
+    await repository.createGroup("legacy")
+    await repository.add("hidden", "Hidden", "body")
+    await repository.setDeleted("hidden", "memo-1", true)
+    const legacyPath: string = join(directory, "legacy", "memo.md")
+    await writeFile(legacyPath, "Keep me", "utf8")
+
+    await assert.rejects(repository.deleteGroup("hidden"), /still contains memos/)
+    await assert.rejects(repository.deleteGroup("legacy"), /contains other files/)
+    assert.equal(await readFile(legacyPath, "utf8"), "Keep me")
+    assert.deepEqual(await repository.read("hidden"), {
+      version: 2,
+      memos: [{ id: "memo-1", title: "Hidden", checked: false, deleted: true, content: "body" }],
+    })
+
+    await repository.deleteGroup("empty")
+    assert.deepEqual(await repository.listGroups(), ["hidden", "legacy"])
+    await assert.rejects(repository.deleteGroup("empty"), { code: "ENOENT" })
+  })
+})
+
 test("does not alter a legacy memo.md when JSON data is absent", async (): Promise<void> => {
   await withTemporaryDirectory(async (directory: string): Promise<void> => {
     const personalDirectory: string = join(directory, "personal")

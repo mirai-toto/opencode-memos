@@ -7,7 +7,9 @@ All available groups are shown at once in separate sidebar sections.
 ## Data format
 
 The plugin reads and writes `~/.memos/<group>/memos.json`. Each group is an
-immediate subdirectory, such as `personal`. A memo has a separate title and an
+immediate subdirectory, such as `personal`. On a fresh install there are no
+groups; create one using **+ Group** in the sidebar (the prompt suggests
+`personal`). A memo has a separate title and an
 unrestricted content string; Markdown is displayed as text and is not parsed
 into required fields.
 
@@ -61,3 +63,7 @@ save and quit the editor to save the memo. When no editor is configured,
 content falls back to an in-app textarea, where **Enter** saves and
 **Ctrl+Enter** inserts a line break. **Esc** or **Cancel** discards unsaved
 changes.
+
+Use **⋯** beside a group to delete it. Only groups with no memos (including
+hidden memos) and no other files can be deleted. The plugin never recursively
+removes a group directory or touches legacy files.

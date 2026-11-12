@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto"
 import type { Dirent } from "node:fs"
-import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promises"
+import { mkdir, readdir, readFile, rename, rm, rmdir, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { join, resolve } from "node:path"
 import { emptyMemoGroup, parseMemoGroup, serializeMemoGroup, type Memo, type MemoGroup } from "./model.ts"
@@ -21,15 +21,34 @@ export class MemoRepository {
     try {
       entries = await readdir(this.rootDirectory, { withFileTypes: true, encoding: "utf8" })
     } catch (error: unknown) {
-      if (errorCode(error) === "ENOENT") return ["personal"]
+      if (errorCode(error) === "ENOENT") return []
       throw error
     }
 
     const groups: string[] = entries
-      .filter((entry) => entry.isDirectory() && isValidGroup(entry.name))
+      .filter((entry) => entry.isDirectory() && isValidGroupName(entry.name))
       .map((entry) => entry.name)
       .sort((left: string, right: string): number => left.localeCompare(right))
-    return groups.length > 0 ? groups : ["personal"]
+    return groups
+  }
+
+  async createGroup(group: string): Promise<void> {
+    const directory: string = this.groupPath(group)
+    await mkdir(this.rootDirectory, { recursive: true, mode: 0o700 })
+    await mkdir(directory, { mode: 0o700 })
+    await this.write(group, emptyMemoGroup())
+  }
+
+  async deleteGroup(group: string): Promise<void> {
+    const directory: string = this.groupPath(group)
+    const data: MemoGroup = await this.read(group)
+    if (data.memos.length > 0) throw new Error(`Group ${group} still contains memos (including hidden ones)`)
+    const entries: string[] = await readdir(directory)
+    if (entries.some((entry: string): boolean => entry !== "memos.json")) {
+      throw new Error(`Group ${group} contains other files and cannot be deleted`)
+    }
+    if (entries.includes("memos.json")) await unlink(this.dataPath(group))
+    await rmdir(directory)
   }
 
   async read(group: string): Promise<MemoGroup> {
@@ -110,12 +129,12 @@ export class MemoRepository {
   }
 
   private groupPath(group: string): string {
-    if (!isValidGroup(group)) throw new Error(`Invalid memo group name: ${group}`)
+    if (!isValidGroupName(group)) throw new Error(`Invalid memo group name: ${group}`)
     return join(this.rootDirectory, group)
   }
 }
 
-function isValidGroup(group: string): boolean {
+export function isValidGroupName(group: string): boolean {
   return /^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(group)
 }
 

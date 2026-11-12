@@ -4,7 +4,7 @@ import type { MouseEvent, ScrollBoxRenderable, TextareaRenderable } from "@opent
 import type { JSX } from "@opentui/solid"
 import { createEffect, createSignal, For, onCleanup, onMount, Show, type Accessor, type Setter } from "solid-js"
 import type { Store } from "solid-js/store"
-import { MemoRepository } from "./store.ts"
+import { isValidGroupName, MemoRepository } from "./store.ts"
 import type { Memo } from "./model.ts"
 import { editorCommand, editInEditor, type ExternalEditResult } from "./editor.ts"
 
@@ -336,6 +336,57 @@ function MemosPanel(props: {
     })
   }
 
+  const createGroup: () => Promise<void> = async (): Promise<void> => {
+    let current: string = ""
+    for (;;) {
+      const raw: string | undefined = await props.context.ui.dialog.prompt({
+        title: "Create memo group",
+        placeholder: "personal",
+        value: current,
+      })
+      if (raw === undefined) return
+      const name: string = raw.trim()
+      if (!isValidGroupName(name)) {
+        props.context.ui.toast.show({ title: "Memos", message: "Use letters, numbers, _ or -; start with a letter or number", variant: "error" })
+        current = name
+        continue
+      }
+      try {
+        await props.repository.createGroup(name)
+        await refresh()
+        return
+      } catch (error: unknown) {
+        props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
+        return
+      }
+    }
+  }
+
+  const manageGroup: (group: string) => Promise<void> = async (group: string): Promise<void> => {
+    const action: string | undefined = await props.context.ui.dialog.select({
+      title: `${group} group`,
+      options: [{ title: "Delete group", value: "delete", description: "Only if it has no memos or other files" }],
+    })
+    if (action !== "delete") return
+    try {
+      const data = await props.repository.read(group)
+      if (data.memos.length > 0) {
+        await props.context.ui.dialog.alert({ title: "Group is not empty", message: "Delete all memos, including hidden ones, first." })
+        return
+      }
+      const confirmed: boolean = (await props.context.ui.dialog.confirm({
+        title: `Delete ${group} group?`,
+        message: "Only an empty group can be deleted. Other files in its directory will not be removed.",
+        label: { confirm: "Delete", cancel: "Cancel" },
+      })) ?? false
+      if (!confirmed) return
+      await props.repository.deleteGroup(group)
+      await refresh()
+    } catch (error: unknown) {
+      props.context.ui.toast.show({ title: "Memos", message: errorMessage(error), variant: "error" })
+    }
+  }
+
   const toggleChecked: (group: string, memo: Memo) => Promise<void> = async (group: string, memo: Memo): Promise<void> => {
     try {
       await props.repository.setChecked(group, memo.id, !memo.checked)
@@ -387,16 +438,27 @@ function MemosPanel(props: {
 
   return (
     <box>
-      <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}
-        onMouseDown={(event: MouseEvent): void => click(event, (): void => props.updatePreferences((draft: PanelPreferences): void => { draft.collapsed = !draft.collapsed }))}>
-        <b>{props.preferences.collapsed ? "▶" : "▼"} Memos</b>
-      </text>
+      <box flexDirection="row" gap={2}>
+        <text fg={props.context.theme.text.base} wrapMode="none" truncate height={1}
+          onMouseDown={(event: MouseEvent): void => click(event, (): void => props.updatePreferences((draft: PanelPreferences): void => { draft.collapsed = !draft.collapsed }))}>
+          <b>{props.preferences.collapsed ? "▶" : "▼"} Memos</b>
+        </text>
+        <Show when={!props.preferences.collapsed}>
+          <text fg={props.context.theme.hue.accent[400]} height={1} wrapMode="none"
+            onMouseUp={(event: MouseEvent): void => click(event, (): void => { void createGroup() })}>+ Group</text>
+        </Show>
+      </box>
       <Show when={!props.preferences.collapsed}>
         <Show when={state().loading}>
           <text fg={props.context.theme.text.muted}>Loading memos…</text>
         </Show>
         <Show when={state().error}>
           <text fg={props.context.theme.text.feedback.error.base} maxHeight={2}>{state().error}</text>
+        </Show>
+        <Show when={!state().loading && !state().error && state().groups.length === 0}>
+          <text fg={props.context.theme.text.muted}>No memo groups yet.</text>
+          <text fg={props.context.theme.hue.accent[400]} height={1} wrapMode="none"
+            onMouseUp={(event: MouseEvent): void => click(event, (): void => { void createGroup() })}>+ Create group</text>
         </Show>
         <For each={state().groups}>{(group: GroupMemos): JSX.Element => (
           <box>
@@ -406,6 +468,8 @@ function MemosPanel(props: {
               </text>
               <text fg={props.context.theme.hue.accent[400]} height={1} wrapMode="none"
                 onMouseUp={(event: MouseEvent): void => click(event, (): void => { void addMemo(group.name) })}>+ New</text>
+              <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
+                onMouseUp={(event: MouseEvent): void => click(event, (): void => { void manageGroup(group.name) })}>⋯</text>
             </box>
             <Show when={group.error}>
               <text fg={props.context.theme.text.feedback.error.base} maxHeight={2}>{group.error}</text>
@@ -433,10 +497,12 @@ function MemosPanel(props: {
           </box>
         )}</For>
         <box flexDirection="row" gap={2}>
-          <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
-            onMouseUp={(event: MouseEvent): void => click(event, (): void => props.updatePreferences((draft: PanelPreferences): void => { draft.showDeleted = !draft.showDeleted }))}>
-            {props.preferences.showDeleted ? "Hide deleted" : "Show deleted"}
-          </text>
+          <Show when={state().groups.length > 0}>
+            <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
+              onMouseUp={(event: MouseEvent): void => click(event, (): void => props.updatePreferences((draft: PanelPreferences): void => { draft.showDeleted = !draft.showDeleted }))}>
+              {props.preferences.showDeleted ? "Hide deleted" : "Show deleted"}
+            </text>
+          </Show>
           <text fg={props.context.theme.text.muted} height={1} wrapMode="none"
             onMouseUp={(event: MouseEvent): void => click(event, (): void => { void refresh() })}>↻ Refresh</text>
         </box>
